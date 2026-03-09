@@ -1292,6 +1292,165 @@ footer {
         </div>
       `;
     };
-  </script>
+  </script><script>
+  // ============================================
+  // FONCTIONS MANQUANTES - À AJOUTER
+  // ============================================
+  
+  // Fonction pour charger les photographes (déjà dans ton code mais vérifions)
+  window.chargerPhotographes = async function() {
+    console.log("Chargement des photographes...");
+    const grid = document.getElementById('photogs-grid');
+    if (!grid) {
+      console.log("Grille non trouvée");
+      return;
+    }
+    
+    try {
+      // Essaie de charger depuis Firebase
+      if (window._db) {
+        const q = query(collection(window._db, "utilisateurs"), where("role", "==", "photographe"));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+          grid.innerHTML = getDemodCards();
+        } else {
+          let html = '';
+          snapshot.forEach(doc => {
+            html += makeCard(doc.id, doc.data());
+          });
+          grid.innerHTML = html;
+        }
+      } else {
+        // Pas de Firebase, on met des cartes démo
+        grid.innerHTML = getDemodCards();
+      }
+    } catch (error) {
+      console.error("Erreur chargement:", error);
+      grid.innerHTML = getDemodCards();
+    }
+  };
+  
+  // Fonction pour les cartes de démonstration
+  window.getDemodCards = function() {
+    return `
+      <div class="photog-card" onclick="contacterPhotographe('demo1', 'Marie K.', '+242 06 XXX XXX')">
+        <div class="photog-cover"></div>
+        <div class="photog-avatar">📸</div>
+        <div class="photog-info">
+          <div class="photog-name">Marie K.</div>
+          <div class="photog-location">📍 Brazzaville</div>
+          <div class="photog-tags">
+            <span class="photog-tag">Mariage</span>
+            <span class="photog-tag">Portrait</span>
+          </div>
+          <div class="photog-price">À partir de 50 000 FCFA</div>
+          <button class="photog-btn">Contacter</button>
+        </div>
+      </div>
+      <div class="photog-card" onclick="contacterPhotographe('demo2', 'Jean P.', '+242 05 XXX XXX')">
+        <div class="photog-cover"></div>
+        <div class="photog-avatar">📷</div>
+        <div class="photog-info">
+          <div class="photog-name">Jean P.</div>
+          <div class="photog-location">📍 Pointe-Noire</div>
+          <div class="photog-tags">
+            <span class="photog-tag">Événement</span>
+            <span class="photog-tag">Concert</span>
+          </div>
+          <div class="photog-price">À partir de 40 000 FCFA</div>
+          <button class="photog-btn">Contacter</button>
+        </div>
+      </div>
+      <div class="photog-card" onclick="contacterPhotographe('demo3', 'Paul M.', '+242 04 XXX XXX')">
+        <div class="photog-cover"></div>
+        <div class="photog-avatar">📹</div>
+        <div class="photog-info">
+          <div class="photog-name">Paul M.</div>
+          <div class="photog-location">📍 Brazzaville</div>
+          <div class="photog-tags">
+            <span class="photog-tag">Portrait</span>
+            <span class="photog-tag">Studio</span>
+          </div>
+          <div class="photog-price">À partir de 35 000 FCFA</div>
+          <button class="photog-btn">Contacter</button>
+        </div>
+      </div>
+    `;
+  };
+  
+  // Fonction pour créer une carte photographe
+  window.makeCard = function(id, data) {
+    return `
+      <div class="photog-card" onclick="contacterPhotographe('${id}', '${data.nom || 'Photographe'}', '${data.telephone || '+242 XX XXX XXX'}')">
+        <div class="photog-cover"></div>
+        <div class="photog-avatar">📸</div>
+        <div class="photog-info">
+          <div class="photog-name">${data.nom || 'Photographe'}</div>
+          <div class="photog-location">📍 ${data.ville || 'Congo'}</div>
+          <div class="photog-tags">
+            <span class="photog-tag">${data.specialite || 'Photographe'}</span>
+          </div>
+          <div class="photog-price">À partir de ${data.tarif || '40 000'} FCFA</div>
+          <button class="photog-btn">Contacter</button>
+        </div>
+      </div>
+    `;
+  };
+  
+  // Fonction pour fermer les modals
+  window.closeModal = function(type) {
+    const modal = document.getElementById(type + '-modal');
+    if (modal) modal.style.display = 'none';
+  };
+  
+  // Fonction pour ouvrir les modals
+  window.openModal = function(type) {
+    const modal = document.getElementById(type + '-modal');
+    if (modal) modal.style.display = 'flex';
+  };
+  
+  // Fonction pour switcher entre modals
+  window.switchModal = function(from, to) {
+    closeModal(from);
+    openModal(to);
+  };
+  
+  // Fonction pour les toasts
+  window.showToast = function(message) {
+    // Vérifie si un toast existe déjà
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      if (toast.parentNode) toast.remove();
+    }, 3000);
+  };
+  
+  // Initialisation au chargement
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log("Page chargée, initialisation...");
+    
+    // Charge les photographes au démarrage
+    if (typeof chargerPhotographes === 'function') {
+      chargerPhotographes();
+    }
+    
+    // Ajoute les écouteurs pour les boutons si nécessaires
+    const themeToggle = document.querySelector('.theme-toggle');
+    if (themeToggle) {
+      themeToggle.addEventListener('click', function() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme');
+        html.setAttribute('data-theme', currentTheme === 'dark' ? 'light' : 'dark');
+      });
+    }
+  });
+</script>
 </body>
 </html>
