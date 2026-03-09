@@ -936,6 +936,62 @@ section { padding: 80px 5%; }
 }
 .modal-close:hover { color: var(--text-primary); }
 
+  <!-- BOUTON DE PAIEMENT SIMPLE -->
+<div style="background: #1e2a3a; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
+   <h3 style="color: #66b2ff;">📱 Paiement Mobile Money (MTN)</h3>
+   <p style="font-size: 24px; margin: 20px 0;">2 000 FCFA</p>
+   
+   <button onclick="afficherInstructions()" style="background: #ffcc00; color: #000; padding: 15px 30px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+      💰 Payer avec Mobile Money
+   </button>
+   
+   <!-- Les instructions apparaissent ici quand on clique -->
+   <div id="instructions-momo" style="display: none; margin-top: 20px; padding: 20px; background: #0a1a2a; border-radius: 8px;">
+      <h4>📲 ÉTAPES À SUIVRE :</h4>
+      
+      <div style="text-align: left; margin: 20px 0;">
+         <p>1️⃣ Ouvre ton application <strong>MTN MoMo</strong></p>
+         <p>2️⃣ Choisis <strong>"Payer"</strong></p>
+         <p>3️⃣ Entre le numéro : <strong style="font-size: 20px; color: #ffcc00;">06 723 62 26</strong></p>
+         <p>4️⃣ Montant : <strong>2 000 FCFA</strong></p>
+         <p>5️⃣ Motif : <strong>FotoCongo + ton email</strong></p>
+      </div>
+      
+      <button onclick="confirmerPaiement()" style="background: #4CAF50; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: bold; width: 100%;">
+         ✅ J'AI EFFECTUÉ LE PAIEMENT
+      </button>
+   </div>
+</div>
+
+<!-- Message de confirmation -->
+<div id="message-paiement"></div>
+
+<script>
+// Fonction pour afficher les instructions
+function afficherInstructions() {
+   document.getElementById('instructions-momo').style.display = 'block';
+}
+
+// Fonction quand le client a payé
+function confirmerPaiement() {
+   const message = document.getElementById('message-paiement');
+   message.innerHTML = `
+      <div style="background: #4CAF50; color: white; padding: 15px; border-radius: 8px; margin-top: 20px;">
+         ✅ Merci ! Votre demande a été enregistrée.<br>
+         <strong>Votre abonnement sera activé dans les 24h.</strong>
+      </div>
+   `;
+   
+   // Cacher les instructions
+   document.getElementById('instructions-momo').style.display = 'none';
+   
+   // Ici on peut enregistrer dans Firebase (optionnel)
+   if (typeof db !== 'undefined' && auth?.currentUser) {
+      // Enregistrer la demande (si tu veux)
+      console.log("Paiement enregistré pour " + auth.currentUser.email);
+   }
+}
+</script>
 /* ═══════════════════════════════════════════
    TOAST
 ═══════════════════════════════════════════ */
