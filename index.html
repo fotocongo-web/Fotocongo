@@ -1595,5 +1595,20 @@ document.getElementById('photogs-grid').innerHTML = getDemodCards();
 </script>
 <!-- CinetPay SDK -->
 <script src="https://cdn.cinetpay.com/seamless/main.js"></script>
+<!-- BOUTON DE THÈME À AJOUTER DANS NAV PLUS TARD -->
+<script>
+    // Gestionnaire de thème
+    function toggleTheme() {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme') || 'dark';
+        const newTheme = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+    }
+    
+    // Appliquer le thème sauvegardé
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+</script>
 </body>
 </html>
