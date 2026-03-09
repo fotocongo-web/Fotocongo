@@ -8,166 +8,145 @@
 
 <!-- FIREBASE SDK - VERSION CORRIGÉE -->
 <script type="module">
-  // == BOUTON DE DÉBOGAGE VISIBLE ==
-  const debugDiv = document.createElement('div');
-  debugDiv.id = 'debug';
-  debugDiv.style.cssText = 'position:fixed; top:0; left:0; background:red; color:white; z-index:9999; padding:10px; font-size:14px; max-width:100%; word-break:break-word;';
-  debugDiv.innerHTML = '🔍 Débogage actif...';
-  document.body.prepend(debugDiv);
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, setDoc, query, where, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  window.onerror = function(msg, url, line) {
-    debugDiv.innerHTML = '❌ ERREUR: ' + msg + ' (ligne ' + line + ')';
-    return false;
+  // ✅ CONFIG FIREBASE FOTOCONGO
+  const firebaseConfig = {
+    apiKey: "AIzaSyDLg5WiF2GuWGwoHeFdFEsoX5CKaIwtcLA",
+    authDomain: "fotocongo-29b79.firebaseapp.com",
+    projectId: "fotocongo-29b79",
+    storageBucket: "fotocongo-29b79.firebasestorage.app",
+    messagingSenderId: "388529080436",
+    appId: "1:388529080436:web:53a5bb9d64358e5a4fa921",
+    measurementId: "G-M8F4CX1M6G"
   };
 
-  console.error = function(msg) {
-    debugDiv.innerHTML = '⚠️ CONSOLE: ' + msg;
-  };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-  try {
-    debugDiv.innerHTML = '✅ 1. Import Firebase...';
-    
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, setDoc, query, where, serverTimestamp }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-    debugDiv.innerHTML = '✅ 2. Firebase importé, configuration...';
-
-    // ✅ CONFIG FIREBASE FOTOCONGO
-    const firebaseConfig = {
-      apiKey: "AIzaSyDLg5WiF2GuWGwoHeFdFEsoX5CKaIwtcLA",
-      authDomain: "fotocongo-29b79.firebaseapp.com",
-      projectId: "fotocongo-29b79",
-      storageBucket: "fotocongo-29b79.firebasestorage.app",
-      messagingSenderId: "388529080436",
-      appId: "1:388529080436:web:53a5bb9d64358e5a4fa921",
-      measurementId: "G-M8F4CX1M6G"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    debugDiv.innerHTML = '✅ 3. Firebase connecté !';
-
-    // ---- INSCRIPTION ----
-    window.inscrire = async (email, pwd, nom, ville, role) => {
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, email, pwd);
-        await setDoc(doc(db, "utilisateurs", cred.user.uid), {
-          nom, ville, role, email,
-          abonnementActif: false,
-          abonnementExpire: null,
-          createdAt: serverTimestamp()
-        });
-        showToast("🎉 Bienvenue sur FotoCongo, " + nom + " !");
-        closeModal();
-        chargerPhotographes();
-      } catch(e) {
-        const msgs = {
-          'auth/email-already-in-use': '❌ Cet email est déjà utilisé',
-          'auth/weak-password': '❌ Mot de passe trop court (6 caractères min)',
-          'auth/invalid-email': '❌ Email invalide'
-        };
-        showToast(msgs[e.code] || '❌ Erreur : ' + e.message);
-      }
-    };
-
-    // ---- CONNEXION ----
-    window.connecter = async (email, pwd) => {
-      try {
-        await signInWithEmailAndPassword(auth, email, pwd);
-        showToast("✅ Connecté !");
-        closeModal();
-      } catch(e) {
-        showToast("❌ Email ou mot de passe incorrect");
-      }
-    };
-
-    // ---- DÉCONNEXION ----
-    window.deconnecter = async () => {
-      await signOut(auth);
-      showToast("👋 À bientôt !");
-    };
-        // ---- ÉTAT CONNEXION ----
-    onAuthStateChanged(auth, u => {
-      updateNavbar(u);
-      chargerPhotographes();
-    });
-
-    // ---- CHARGER PHOTOGRAPHES ----
-    window.chargerPhotographes = async () => {
-      const grid = document.getElementById('photogs-grid');
-      if (!grid) return;
-      try {
-        const snap = await getDocs(query(collection(db, "utilisateurs"), where("role", "==", "photographe")));
-        if (snap.empty) { grid.innerHTML = getDemodCards(); return; }
-        let html = '';
-        snap.forEach(d => html += makeCard(d.id, d.data()));
-        grid.innerHTML = html;
-      } catch { grid.innerHTML = getDemodCards(); }
-    };
-
-    // ---- ABONNEMENT PHOTOGRAPHE ----
-    window.demanderAbonnement = async () => {
-      const user = auth.currentUser;
-      if (!user) { showToast("⚠️ Connectez-vous d'abord"); openModal('login'); return; }
-      await addDoc(collection(db, "demandes_abonnement"), {
-        userId: user.uid,
-        email: user.email,
-        montant: 2000,
-        statut: 'en_attente',
+  // ---- INSCRIPTION ----
+  window.inscrire = async (email, pwd, nom, ville, role) => {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+      await setDoc(doc(db, "utilisateurs", cred.user.uid), {
+        nom, ville, role, email,
+        abonnementActif: false,
+        abonnementExpire: null,
         createdAt: serverTimestamp()
       });
-      showToast("✅ Demande envoyée ! Envoyez 2 000 FCFA au +242 XX XXX XXX (MTN FotoCongo Services) puis attendez l'activation.");
-      document.getElementById('paiement-instructions').style.display = 'block';
-    };
+      showToast("🎉 Bienvenue sur FotoCongo, " + nom + " !");
+      closeModal();
+      chargerPhotographes();
+    } catch(e) {
+      const msgs = {
+        'auth/email-already-in-use': '❌ Cet email est déjà utilisé',
+        'auth/weak-password': '❌ Mot de passe trop court (6 caractères min)',
+        'auth/invalid-email': '❌ Email invalide'
+      };
+      showToast(msgs[e.code] || '❌ Erreur : ' + e.message);
+    }
+  };
 
-    // ---- MISE EN RELATION ----
-    window.contacterPhotographe = async (photoId, nomPhoto, telPhoto) => {
-      const user = auth.currentUser;
-      if (!user) { showToast("⚠️ Connectez-vous pour contacter ce photographe"); openModal('login'); return; }
-      await addDoc(collection(db, "mises_en_relation"), {
-        clientId: user.uid,
-        clientEmail: user.email,
-        photographeId: photoId,
-        photographeNom: nomPhoto,
-        statut: 'initié',
-        createdAt: serverTimestamp()
-      }).catch(() => {});
-      showToast(`📱 Contact de ${nomPhoto} : ${telPhoto || 'numéro visible sur son profil'}`);
-      document.getElementById('contact-modal-name').textContent = nomPhoto;
-      document.getElementById('contact-modal-tel').textContent = telPhoto || 'Connectez-vous pour voir le numéro';
-      document.getElementById('contact-modal').style.display = 'flex';
-    };
+  // ---- CONNEXION ----
+  window.connecter = async (email, pwd) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, pwd);
+      showToast("✅ Connecté !");
+      closeModal();
+    } catch(e) {
+      showToast("❌ Email ou mot de passe incorrect");
+    }
+  };
 
-    // ---- NAVBAR ----
-    window.updateNavbar = u => {
-      const el = document.getElementById('nav-btns');
-      if (!el) return;
-      el.innerHTML = u
-        ? `<span class="nav-user">👤 ${u.email.split('@')[0]}</span>
-           <button class="btn-ghost-sm" onclick="deconnecter()">Déconnexion</button>`
-        : `<button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
-           <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>`;
-    };
+  // ---- DÉCONNEXION ----
+  window.deconnecter = async () => {
+    await signOut(auth);
+    showToast("👋 À bientôt !");
+  };
 
-    window._auth = auth;
-    window._db = db;
-    window.serverTimestamp = serverTimestamp;
-    window.addDoc = addDoc;
-    window.collection = collection;
-    
-    debugDiv.innerHTML = '✅ SUCCÈS ! Site chargé !';
-    
-  } catch (error) {
-    debugDiv.innerHTML = '❌ GROSSE ERREUR: ' + error.message;
-  }
-</script>
+  // ---- ÉTAT CONNEXION ----
+  onAuthStateChanged(auth, u => {
+    updateNavbar(u);
+    chargerPhotographes();
+  });
 
-<style>
+  // ---- CHARGER PHOTOGRAPHES ----
+  window.chargerPhotographes = async () => {
+    const grid = document.getElementById('photogs-grid');
+    if (!grid) return;
+    try {
+      const snap = await getDocs(query(collection(db, "utilisateurs"), where("role", "==", "photographe")));
+      if (snap.empty) { grid.innerHTML = getDemodCards(); return; }
+      let html = '';
+      snap.forEach(d => html += makeCard(d.id, d.data()));
+      grid.innerHTML = html;
+    } catch { grid.innerHTML = getDemodCards(); }
+  };
+
+  // ---- ABONNEMENT PHOTOGRAPHE (2000 FCFA → toi) ----
+  // Le photographe paie son abonnement directement sur ton MoMo FotoCongo Services
+  // Après paiement manuel, tu actives son compte depuis l'admin
+  window.demanderAbonnement = async () => {
+    const user = auth.currentUser;
+    if (!user) { showToast("⚠️ Connectez-vous d'abord"); openModal('login'); return; }
+    // Enregistrer la demande dans Firestore
+    await addDoc(collection(db, "demandes_abonnement"), {
+      userId: user.uid,
+      email: user.email,
+      montant: 2000,
+      statut: 'en_attente',
+      createdAt: serverTimestamp()
+    });
+    showToast("✅ Demande envoyée ! Envoyez 2 000 FCFA au +242 XX XXX XXX (MTN FotoCongo Services) puis attendez l'activation.");
+    // Afficher les instructions de paiement
+    document.getElementById('paiement-instructions').style.display = 'block';
+  };
+
+  // ---- MISE EN RELATION CLIENT ↔ PHOTOGRAPHE (DIRECT, sans toi) ----
+  // Le client contacte le photographe directement, paie directement
+  // Tu ne touches pas à ce paiement — tu gagnes seulement l'abonnement
+  window.contacterPhotographe = async (photoId, nomPhoto, telPhoto) => {
+    const user = auth.currentUser;
+    if (!user) { showToast("⚠️ Connectez-vous pour contacter ce photographe"); openModal('login'); return; }
+    // Enregistrer la mise en relation
+    await addDoc(collection(db, "mises_en_relation"), {
+      clientId: user.uid,
+      clientEmail: user.email,
+      photographeId: photoId,
+      photographeNom: nomPhoto,
+      statut: 'initié',
+      createdAt: serverTimestamp()
+    }).catch(() => {});
+    showToast(`📱 Contact de ${nomPhoto} : ${telPhoto || 'numéro visible sur son profil'}`);
+    // Afficher le numéro du photographe (qu'il a renseigné)
+    document.getElementById('contact-modal-name').textContent = nomPhoto;
+    document.getElementById('contact-modal-tel').textContent = telPhoto || 'Connectez-vous pour voir le numéro';
+    document.getElementById('contact-modal').style.display = 'flex';
+  };
+
+  // ---- NAVBAR ----
+  window.updateNavbar = u => {
+    const el = document.getElementById('nav-btns');
+    if (!el) return;
+    el.innerHTML = u
+      ? `<span class="nav-user">👤 ${u.email.split('@')[0]}</span>
+         <button class="btn-ghost-sm" onclick="deconnecter()">Déconnexion</button>`
+      : `<button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
+         <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>`;
+  };
+
+  window._auth = auth;
+  window._db = db;
+  window.serverTimestamp = serverTimestamp;
+  window.addDoc = addDoc;
+  window.collection = collection;
+    </script>
+    <style>
 /* ═══════════════════════════════════════════
    VARIABLES DE THÈMES
 ═══════════════════════════════════════════ */
@@ -250,8 +229,9 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
-  }
-  /* ═══════════════════════════════════════════
+}
+
+/* ═══════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════ */
 nav {
@@ -518,7 +498,7 @@ nav {
 
 @keyframes slideDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
 @keyframes slideUp   { from{opacity:0;transform:translateY(20px)}  to{opacity:1;transform:translateY(0)} }
-  /* ═══════════════════════════════════════════
+      /* ═══════════════════════════════════════════
    GALERIE MOSAIQUE
 ═══════════════════════════════════════════ */
 .mosaic-section { padding: 0 0 64px; }
@@ -621,678 +601,942 @@ section { padding: 80px 5%; }
 
 .photog-card {
   background: var(--bg-card);
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: var(--shadow-card);
-  transition: all 0.3s var(--ease-spring);
   border: 1px solid var(--border);
+  transition: all 0.3s var(--ease-smooth);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
 }
-
 .photog-card:hover {
   transform: translateY(-6px);
+  border-color: var(--border-hover);
   box-shadow: var(--shadow);
-  border-color: var(--accent-dim);
 }
 
 .photog-cover {
-  height: 160px;
-  background: var(--grad-lens);
-  position: relative;
+  height: 185px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4rem; position: relative;
+  transition: all 0.3s;
+}
+.c-sunset   { background: linear-gradient(135deg, #0044CC 0%, #0088FF 55%, #00CCFF 100%); }
+.c-ocean    { background: linear-gradient(135deg, #001F80 0%, #0055CC 55%, #0099FF 100%); }
+.c-rose     { background: linear-gradient(135deg, #0033AA 0%, #0077EE 55%, #33BBFF 100%); }
+.c-emerald  { background: linear-gradient(135deg, #003399 0%, #0066FF 55%, #00AAFF 100%); }
+.c-velvet   { background: linear-gradient(135deg, #001166 0%, #0044BB 55%, #0088FF 100%); }
+.c-fire     { background: linear-gradient(135deg, #002266 0%, #005ACC 55%, #00C3FF 100%); }
+
+[data-theme="light"] .c-sunset   { background: linear-gradient(135deg, #80BBFF, #3399FF, #0066FF); }
+[data-theme="light"] .c-ocean    { background: linear-gradient(135deg, #99CCFF, #55AAFF, #0055CC); }
+[data-theme="light"] .c-rose     { background: linear-gradient(135deg, #AACCFF, #66AAFF, #0077EE); }
+[data-theme="light"] .c-emerald  { background: linear-gradient(135deg, #88CCFF, #44BBFF, #0099FF); }
+[data-theme="light"] .c-velvet   { background: linear-gradient(135deg, #99BBFF, #5599FF, #0044BB); }
+[data-theme="light"] .c-fire     { background: linear-gradient(135deg, #AADDFF, #55CCFF, #00AAFF); }
+
+.badge-pro {
+  position: absolute; top: 12px; right: 12px;
+  background: var(--grad-golden);
+  color: #1A0800; font-size: 0.62rem; font-weight: 800;
+  padding: 3px 10px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.badge-ama {
+  position: absolute; top: 12px; right: 12px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  color: white; font-size: 0.62rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 10px;
 }
 
-.photog-avatar {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
+.photog-info { padding: 16px; }
+.photog-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.avatar {
+  width: 42px; height: 42px; border-radius: 50%;
   background: var(--grad-sunset);
-  border: 3px solid var(--bg-card);
-  position: absolute;
-  bottom: -25px;
-  left: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 800; color: white;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0,100,255,0.35);
 }
-
-.photog-info {
-  padding: 35px 20px 20px;
-}
-
-.photog-name {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.photog-location {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.photog-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 12px 0;
-}
-
-.photog-tag {
-  font-size: 0.7rem;
-  padding: 3px 10px;
-  border-radius: 20px;
+.photog-name { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); }
+.photog-city { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
+.photog-spec {
+  font-size: 0.78rem; font-weight: 700;
+  color: var(--accent);
   background: var(--accent-dim);
-  color: var(--accent);
-  font-weight: 600;
+  display: inline-block;
+  padding: 3px 10px; border-radius: 12px;
+  margin-bottom: 12px;
 }
-
-.photog-price {
-  font-weight: 700;
-  color: var(--accent);
-  margin: 12px 0;
-}
+.photog-meta { display: flex; justify-content: space-between; align-items: center; }
+.stars { font-size: 0.78rem; color: #FFD700; }
+.stars span { color: var(--text-muted); font-size: 0.72rem; margin-left: 3px; }
+.price { font-size: 0.92rem; font-weight: 700; color: var(--text-primary); }
+.price small { color: var(--text-muted); font-weight: 400; font-size: 0.7rem; }
 
 .photog-btn {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
+  width: 100%; margin-top: 14px; padding: 11px;
   background: var(--grad-dawn);
-  color: white;
-  font-weight: 600;
+  border: none; border-radius: 10px;
+  color: white; font-family: var(--font-body);
+  font-size: 0.85rem; font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s var(--ease-spring);
+  box-shadow: 0 4px 14px rgba(0,100,255,0.25);
 }
+.photog-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,100,255,0.45); }
 
-.photog-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,100,255,0.4);
+/* ═══════════════════════════════════════════
+   COMMENT ÇA MARCHE
+═══════════════════════════════════════════ */
+.how-section { background: var(--bg-secondary); }
+.how-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px; margin-top: 48px;
 }
+.how-card {
+  padding: 30px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  position: relative; overflow: hidden;
+  transition: all 0.3s var(--ease-smooth);
+  box-shadow: var(--shadow-card);
+}
+.how-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow);
+}
+.how-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.how-card:nth-child(1)::before { background: var(--grad-sunset); }
+.how-card:nth-child(2)::before { background: var(--grad-ocean); }
+.how-card:nth-child(3)::before { background: var(--grad-emerald); }
+.how-card:nth-child(4)::before { background: var(--grad-dawn); }
+
+.how-num {
+  font-family: var(--font-display);
+  font-size: 4rem; font-weight: 700;
+  line-height: 1; margin-bottom: 16px;
+  background: var(--grad-sunset);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; opacity: 0.3;
+}
+.how-icon { font-size: 1.8rem; margin-bottom: 12px; }
+.how-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: var(--text-primary); }
+.how-desc { font-size: 0.83rem; color: var(--text-secondary); line-height: 1.6; }
+
+/* ═══════════════════════════════════════════
+   PAIEMENT
+═══════════════════════════════════════════ */
+.payment-section { background: var(--bg-primary); }
+.pay-wrap {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 64px; align-items: center;
+}
+.pay-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 22px; padding: 36px;
+  box-shadow: var(--shadow-card);
+  position: relative; overflow: hidden;
+}
+.pay-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: var(--grad-emerald);
+}
+.pay-label {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 2px; color: var(--text-muted); margin-bottom: 20px;
+}
+.mm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+.mm-option {
+  padding: 14px; border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  cursor: pointer; transition: all 0.25s var(--ease-spring);
+  display: flex; align-items: center; gap: 10px;
+}
+.mm-option:hover, .mm-option.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: scale(1.02);
+}
+.mm-emoji { font-size: 1.4rem; }
+.mm-name { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
+.mm-sub { font-size: 0.7rem; color: var(--text-muted); }
+.pay-input {
+  width: 100%; padding: 13px 16px; border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary); font-family: var(--font-body);
+  font-size: 0.9rem; margin-bottom: 12px; outline: none;
+  transition: border-color 0.2s;
+}
+.pay-input:focus { border-color: var(--accent); }
+.pay-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  background: var(--grad-emerald);
+  color: white; font-family: var(--font-body);
+  font-size: 0.95rem; font-weight: 700;
+  cursor: pointer; transition: all 0.25s;
+  box-shadow: 0 6px 20px rgba(0,100,255,0.35);
+}
+.pay-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,100,255,0.5); }
+.pay-secure { text-align: center; margin-top: 10px; font-size: 0.73rem; color: var(--text-muted); }
+
+.pay-text-side { padding-left: 16px; }
+.check-list { list-style: none; margin-top: 28px; display: flex; flex-direction: column; gap: 14px; }
+.check-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55; }
+.check-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+/* ═══════════════════════════════════════════
+   TARIFS
+═══════════════════════════════════════════ */
+.pricing-section { background: var(--bg-secondary); }
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 22px; margin-top: 52px;
+}
+.price-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 22px; padding: 36px 30px;
+  position: relative;
+  transition: all 0.3s var(--ease-smooth);
+  box-shadow: var(--shadow-card);
+}
+.price-card:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
+.price-card.featured {
+  border-color: transparent;
+  background: linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+              var(--grad-sunset) border-box;
+}
+.price-badge {
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+  background: var(--grad-sunset);
+  color: white; padding: 4px 20px;
+  border-radius: 20px; font-size: 0.72rem;
+  font-weight: 800; text-transform: uppercase;
+  letter-spacing: 1px; white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0,100,255,0.4);
+}
+.price-tier { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+.price-amount { font-family: var(--font-display); font-size: 2.8rem; font-weight: 700; color: var(--text-primary); }
+.price-amount span { font-size: 1rem; font-weight: 400; color: var(--text-muted); font-family: var(--font-body); }
+.price-desc { font-size: 0.82rem; color: var(--text-secondary); margin: 8px 0 24px; }
+.price-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.price-features li { font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 10px; align-items: flex-start; }
+.feat-y { color: #38ef7d; }
+.feat-n { color: var(--text-muted); }
+.price-cta {
+  width: 100%; padding: 13px; border-radius: 12px;
+  font-family: var(--font-body); font-size: 0.9rem; font-weight: 700;
+  cursor: pointer; transition: all 0.25s var(--ease-spring);
+}
+.price-cta-grad { background: var(--grad-dawn); color: white; border: none; box-shadow: 0 4px 14px rgba(0,100,255,0.3); }
+.price-cta-grad:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,100,255,0.45); }
+.price-cta-outline { background: transparent; color: var(--text-primary); border: 1px solid var(--border); }
+.price-cta-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ═══════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg-card);
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  width: 100%; max-width: 460px;
+  animation: modalIn 0.35s var(--ease-spring) both;
+  overflow: hidden; position: relative;
+}
+.modal::before {
+  content: ''; display: block; height: 4px;
+  background: var(--grad-sunset);
+}
+@keyframes modalIn { from{transform:scale(0.92) translateY(20px);opacity:0} to{transform:scale(1) translateY(0);opacity:1} }
+
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.modal-tab {
+  flex: 1; padding: 16px; text-align: center; cursor: pointer;
+  font-weight: 700; font-size: 0.88rem;
+  color: var(--text-muted);
+  border: none; background: transparent;
+  font-family: var(--font-body);
+  transition: color 0.2s;
+  border-bottom: 2px solid transparent;
+}
+.modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.modal-body { padding: 28px; }
+.modal-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+.modal-sub { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 24px; }
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-input {
+  width: 100%; padding: 12px 14px; border-radius: 10px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-primary); font-family: var(--font-body);
+  font-size: 0.88rem; outline: none; transition: border-color 0.2s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-select {
+  width: 100%; padding: 12px 14px; border-radius: 10px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-primary); font-family: var(--font-body);
+  font-size: 0.88rem; outline: none; appearance: none; cursor: pointer;
+}
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.role-btn {
+  padding: 12px; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted);
+  cursor: pointer; font-family: var(--font-body);
+  font-size: 0.8rem; font-weight: 600;
+  transition: all 0.2s; text-align: center;
+}
+.role-btn.active, .role-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.role-icon { font-size: 1.3rem; display: block; margin-bottom: 4px; }
+.submit-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  background: var(--grad-dawn);
+  color: white; font-family: var(--font-body);
+  font-size: 0.95rem; font-weight: 800;
+  cursor: pointer; transition: all 0.25s var(--ease-spring);
+  margin-top: 8px;
+  box-shadow: 0 6px 20px rgba(0,100,255,0.35);
+}
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,100,255,0.5); }
+.modal-close {
+  position: absolute; top: 16px; right: 18px;
+  background: none; border: none;
+  color: var(--text-muted); font-size: 1.3rem; cursor: pointer;
+  z-index: 2; transition: color 0.2s;
+}
+.modal-close:hover { color: var(--text-primary); }
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+.toast {
+  position: fixed; bottom: 26px; right: 26px; z-index: 500;
+  background: var(--grad-emerald);
+  color: white; padding: 13px 22px;
+  border-radius: 12px; font-weight: 700; font-size: 0.88rem;
+  transform: translateY(70px) scale(0.9); opacity: 0;
+  transition: all 0.4s var(--ease-spring);
+  box-shadow: 0 8px 24px rgba(0,100,255,0.4);
+}
+.toast.show { transform: translateY(0) scale(1); opacity: 1; }
 
 /* ═══════════════════════════════════════════
    FOOTER
 ═══════════════════════════════════════════ */
 footer {
   background: var(--bg-secondary);
-  padding: 50px 5% 30px;
   border-top: 1px solid var(--border);
+  padding: 52px 5% 28px;
 }
-
-.footer-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 40px;
-  margin-bottom: 40px;
-}
-
-.footer-col h4 {
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+.footer-logo {
   font-family: var(--font-display);
-  font-size: 1.2rem;
-  margin-bottom: 16px;
+  font-size: 1.6rem; font-weight: 700;
+  background: var(--grad-sunset);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 12px;
 }
-
-.footer-col ul {
-  list-style: none;
-}
-
-.footer-col li {
-  margin-bottom: 10px;
-}
-
-.footer-col a {
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: color 0.2s;
-}
-
-.footer-col a:hover {
-  color: var(--accent);
-}
-
-.footer-bottom {
-  text-align: center;
-  padding-top: 30px;
-  border-top: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-/* ═══════════════════════════════════════════
-   TOAST NOTIFICATIONS
-═══════════════════════════════════════════ */
-.toast {
-  position: fixed;
-  bottom: 30px;
-  right: 30px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  padding: 12px 24px;
-  border-radius: 50px;
-  box-shadow: var(--shadow);
-  border-left: 4px solid var(--accent);
-  z-index: 1000;
-  animation: slideIn 0.3s var(--ease-spring);
-}
-
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
-/* ═══════════════════════════════════════════
-   MODALS
-═══════════════════════════════════════════ */
-.modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.8);
-  z-index: 1000;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
-}
-
-.modal.active {
-  display: flex;
-}
-
-.modal-content {
-  background: var(--bg-card);
-  padding: 40px;
-  border-radius: 24px;
-  width: 90%;
-  max-width: 400px;
-  position: relative;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border);
-}
-
-.modal-close {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: color 0.2s;
-}
-
-.modal-close:hover {
-  color: var(--accent);
-}
-
-.modal h2 {
-  font-family: var(--font-display);
-  margin-bottom: 24px;
-  font-size: 2rem;
-}
-
-.modal input, .modal select {
-  width: 100%;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-family: var(--font-body);
-}
-
-.modal input:focus, .modal select:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.modal-btn {
-  width: 100%;
-  padding: 14px;
-  background: var(--grad-dawn);
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 8px;
-}
-
-.modal-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,100,255,0.4);
-}
-
-.modal-switch {
-  text-align: center;
-  margin-top: 16px;
-  color: var(--text-muted);
-}
-
-.modal-switch span {
-  color: var(--accent);
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.modal-switch span:hover {
-  text-decoration: underline;
-}
+.footer-desc { font-size: 0.83rem; color: var(--text-secondary); line-height: 1.65; max-width: 230px; }
+.footer-col h4 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-primary); margin-bottom: 14px; }
+.footer-col a { display: block; font-size: 0.83rem; color: var(--text-secondary); text-decoration: none; margin-bottom: 9px; transition: color 0.2s; }
+.footer-col a:hover { color: var(--accent); }
+.footer-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 24px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+.footer-copy { font-size: 0.78rem; color: var(--text-muted); }
 
 /* ═══════════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════════ */
-@media (max-width: 768px) {
-  .nav-links {
-    display: none;
-  }
-  
-  .mosaic {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 180px 180px 180px;
-  }
-  
-  .mosaic-item:nth-child(1) {
-    grid-column: span 2;
-  }
-  
-  .hero h1 {
-    font-size: clamp(2.5rem, 6vw, 4rem);
-  }
-  
-  .hero-stats {
-    gap: 30px;
-  }
-}
-
-@media (max-width: 480px) {
-  .hero-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .btn-hero-primary, .btn-hero-secondary {
-    width: 100%;
-  }
-  
-  .mosaic {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-  }
-  
-  .mosaic-item:nth-child(1) {
-    grid-column: auto;
-  }
-  
-  .stat-num {
-    font-size: 1.8rem;
-  }
-}
+@media(max-width: 1024px) { .mosaic { grid-template-columns: 2fr 1fr; grid-template-rows: auto; } .mosaic-item:nth-child(1){ grid-row:span 1; } }
+@media(max-width: 768px) { .nav-links { display:none; } .pay-wrap { grid-template-columns:1fr; } .pay-text-side { padding-left:0; } .footer-grid { grid-template-columns: 1fr 1fr; } .mosaic { grid-template-columns: 1fr 1fr; } }
+@media(max-width: 480px) { .footer-grid { grid-template-columns: 1fr; } .hero-stats { gap:28px; } .mosaic { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
-  <!-- Navigation -->
-  <nav>
-    <div class="nav-logo">FotoCongo</div>
-    <ul class="nav-links">
-      <li><a href="#accueil">Accueil</a></li>
-      <li><a href="#photographes">Photographes</a></li>
-      <li><a href="#comment-ca-marche">Comment ça marche</a></li>
-      <li><a href="#contact">Contact</a></li>
-    </ul>
-    <div class="theme-toggle-wrap">
-      <span class="theme-icon">🌙</span>
-      <button class="theme-toggle" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')"></button>
-      <span class="theme-icon">☀️</span>
-    </div>
-    <div id="nav-btns"></div>
-  </nav>
 
-  <!-- Hero Section -->
-  <section class="hero" id="accueil">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-    <div class="hero-grid"></div>
-    
-    <div class="hero-chip">
-      <span class="pulse-dot"></span>
-      CONGO • BRAZZAVILLE • POINTE-NOIRE
-    </div>
-    
-    <h1>
-      Trouvez le<br>
-      <span class="grad-text">photographe idéal</span><br>
-      pour vos moments
-    </h1>
-    
-    <p class="hero-sub">
-      Mariages, portraits, événements — FotoCongo connecte les talents d'Afrique centrale avec ceux qui cherchent à immortaliser leurs souvenirs.
-    </p>
-    
-    <div class="hero-actions">
-      <button class="btn-hero-primary" onclick="openModal('signup')">Devenir photographe</button>
-      <button class="btn-hero-secondary" onclick="document.getElementById('photographes').scrollIntoView({behavior: 'smooth'})">Trouver un photographe →</button>
-    </div>
-    
-    <div class="hero-stats">
-      <div class="stat-item">
-        <div class="stat-num">50+</div>
-        <div class="stat-lbl">Photographes</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-num">200+</div>
-        <div class="stat-lbl">Événements</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-num">4.9</div>
-        <div class="stat-lbl">Note moyenne</div>
-      </div>
-    </div>
-  </section>
+<!-- NAVIGATION -->
+<nav>
+  <div class="nav-logo" onclick="window.scrollTo(0,0)">
+    FotoCongo
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-left:6px">
+      <defs>
+        <linearGradient id="camGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#0066FF"/>
+          <stop offset="100%" style="stop-color:#00D4FF"/>
+        </linearGradient>
+      </defs>
+      <!-- Corps appareil -->
+      <rect x="2" y="8" width="24" height="16" rx="3" fill="url(#camGrad)" opacity="0.95"/>
+      <!-- Bosse haut (flash) -->
+      <rect x="9" y="5" width="7" height="4" rx="1.5" fill="url(#camGrad)"/>
+      <!-- Objectif cercle externe -->
+      <circle cx="14" cy="16" r="5.5" fill="#0A1425" stroke="url(#camGrad)" stroke-width="1.5"/>
+      <!-- Objectif cercle interne -->
+      <circle cx="14" cy="16" r="3" fill="url(#camGrad)" opacity="0.7"/>
+      <!-- Point brillant -->
+      <circle cx="15.5" cy="14.5" r="1" fill="white" opacity="0.8"/>
+      <!-- Flash LED -->
+      <circle cx="5.5" cy="11.5" r="1.5" fill="white" opacity="0.9"/>
+    </svg>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#photographes">Photographes</a></li>
+    <li><a href="#comment">Comment ça marche</a></li>
+    <li><a href="#tarifs">Tarifs</a></li>
+    <li><a href="admin.html">Admin 🔒</a></li>
+  </ul>
+  <div id="nav-btns">
+    <button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
+    <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>
+  </div>
+</nav>
 
-  <!-- Mosaic Gallery -->
-  <div class="mosaic-section">
-    <div class="mosaic">
-      <div class="mosaic-item m1">
-        <div class="mosaic-photo">📸</div>
-        <div class="mosaic-overlay">
-          <span class="mosaic-tag">Mariage</span>
-        </div>
-      </div>
-      <div class="mosaic-item m2">
-        <div class="mosaic-photo">🎉</div>
-        <div class="mosaic-overlay">
-          <span class="mosaic-tag">Événement</span>
-        </div>
-      </div>
-      <div class="mosaic-item m3">
-        <div class="mosaic-photo">👤</div>
-        <div class="mosaic-overlay">
-          <span class="mosaic-tag">Portrait</span>
-        </div>
-      </div>
-      <div class="mosaic-item m4">
-        <div class="mosaic-photo">🌄</div>
-        <div class="mosaic-overlay">
-          <span class="mosaic-tag">Paysage</span>
-        </div>
-      </div>
-      <div class="mosaic-item m5">
-        <div class="mosaic-photo">🎂</div>
-        <div class="mosaic-overlay">
-          <span class="mosaic-tag">Anniversaire</span>
-        </div>
-      </div>
+<!-- HERO -->
+<section class="hero">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-chip"><div class="pulse-dot"></div> N°1 de la photographie au Congo 🇨🇬</div>
+  <h1>Votre moment mérite<br>un <span class="grad-text">photographe</span><br>d'exception</h1>
+  <p class="hero-sub">FotoCongo connecte les meilleurs talents photographiques de Brazzaville et Pointe-Noire avec des clients exigeants. Paiement sécurisé par Mobile Money.</p>
+  <div class="hero-actions">
+    <button class="btn-hero-primary" onclick="document.getElementById('photographes').scrollIntoView({behavior:'smooth'})">📸 Trouver un photographe</button>
+    <button class="btn-hero-secondary" onclick="openModal('signup')">🎯 Je suis photographe</button>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-item"><div class="stat-num">120+</div><div class="stat-lbl">Photographes</div></div>
+    <div class="stat-item"><div class="stat-num">850+</div><div class="stat-lbl">Missions réalisées</div></div>
+    <div class="stat-item"><div class="stat-num">4.9★</div><div class="stat-lbl">Note moyenne</div></div>
+    <div class="stat-item"><div class="stat-num">2 villes</div><div class="stat-lbl">Couvertes</div></div>
+  </div>
+</section>
+<!-- MOSAIQUE -->
+<div class="mosaic-section">
+  <div class="mosaic">
+    <div class="mosaic-item"><div class="mosaic-photo m1">💒</div><div class="mosaic-overlay"><span class="mosaic-tag">Mariage</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m2">🎭</div><div class="mosaic-overlay"><span class="mosaic-tag">Portrait</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m3">✨</div><div class="mosaic-overlay"><span class="mosaic-tag">Mode</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m4">🌿</div><div class="mosaic-overlay"><span class="mosaic-tag">Nature</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m5">🎉</div><div class="mosaic-overlay"><span class="mosaic-tag">Événement</span></div></div>
+  </div>
+</div>
+
+<!-- PHOTOGRAPHES -->
+<section id="photographes">
+  <div class="photogs-header">
+    <div>
+      <div class="section-chip">✨ Nos talents</div>
+      <h2 class="section-title">Photographes <span class="grad">disponibles</span></h2>
+    </div>
+    <div class="filter-tabs">
+      <button class="tab active" onclick="filterTab(this)">Tous</button>
+      <button class="tab" onclick="filterTab(this)">Mariage</button>
+      <button class="tab" onclick="filterTab(this)">Portrait</button>
+      <button class="tab" onclick="filterTab(this)">Événement</button>
+      <button class="tab" onclick="filterTab(this)">Corporate</button>
     </div>
   </div>
+  <div class="photogs-grid" id="photogs-grid">
+    <div style="color:var(--text-muted);padding:20px">Chargement des photographes...</div>
+  </div>
+</section>
 
-  <!-- Photographes Section -->
-  <section id="photographes">
-    <div class="section-chip">
-      <span>📷 NOTRE COMMUNAUTÉ</span>
+<!-- COMMENT ÇA MARCHE -->
+<section id="comment" class="how-section">
+  <div class="section-chip">🚀 Simple & rapide</div>
+  <h2 class="section-title">Comment ça <span class="grad">marche</span> ?</h2>
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-num">01</div>
+      <div class="how-icon">🔍</div>
+      <div class="how-title">Cherchez un photographe</div>
+      <div class="how-desc">Parcourez les profils, comparez les portfolios et les tarifs selon votre budget.</div>
     </div>
-    
-    <div class="photogs-header">
-      <h2 class="section-title">
-        Photographes <span class="grad">professionnels</span> près de chez vous
-      </h2>
-      <div class="filter-tabs">
-        <button class="tab active">Tous</button>
-        <button class="tab">Mariage</button>
-        <button class="tab">Portrait</button>
-        <button class="tab">Événement</button>
-        <button class="tab">Brazza</button>
-        <button class="tab">Pointe-Noire</button>
-      </div>
+    <div class="how-card">
+      <div class="how-num">02</div>
+      <div class="how-icon">📱</div>
+      <div class="how-title">Contactez-le directement</div>
+      <div class="how-desc">Discutez de votre projet, fixez la date et le prix directement avec le photographe.</div>
     </div>
-    
-    <div id="photogs-grid" class="photogs-grid">
-      <!-- Les photographes seront chargés ici par Firebase -->
+    <div class="how-card">
+      <div class="how-num">03</div>
+      <div class="how-icon">💸</div>
+      <div class="how-title">Payez-le directement</div>
+      <div class="how-desc">Réglez le photographe directement par MTN MoMo ou Airtel Money. FotoCongo ne prend aucune commission.</div>
     </div>
-  </section>
+    <div class="how-card">
+      <div class="how-num">04</div>
+      <div class="how-icon">📸</div>
+      <div class="how-title">Recevez vos photos</div>
+      <div class="how-desc">Photos retouchées livrées sous 48-72h. Laissez un avis pour aider la communauté.</div>
+    </div>
+  </div>
+</section>
 
-  <!-- Comment ça marche -->
-  <section id="comment-ca-marche">
-    <div class="section-chip">
-      <span>🔍 SIMPLE & RAPIDE</span>
-    </div>
-    <h2 class="section-title">
-      Comment <span class="grad">FotoCongo</span> fonctionne
-    </h2>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin-top: 40px;">
-      <div style="text-align: center; padding: 30px;">
-        <div style="font-size: 3rem; margin-bottom: 20px;">1️⃣</div>
-        <h3 style="font-family: var(--font-display); margin-bottom: 10px;">Recherchez</h3>
-        <p style="color: var(--text-secondary);">Parcourez les profils de photographes par ville, spécialité ou style.</p>
-      </div>
-      <div style="text-align: center; padding: 30px;">
-        <div style="font-size: 3rem; margin-bottom: 20px;">2️⃣</div>
-        <h3 style="font-family: var(--font-display); margin-bottom: 10px;">Contactez</h3>
-        <p style="color: var(--text-secondary);">Échangez directement avec le photographe, discutez de votre projet.</p>
-      </div>
-      <div style="text-align: center; padding: 30px;">
-        <div style="font-size: 3rem; margin-bottom: 20px;">3️⃣</div>
-        <h3 style="font-family: var(--font-display); margin-bottom: 10px;">Immortalisez</h3>
-        <p style="color: var(--text-secondary);">Le photographe capture vos moments et vous livre des souvenirs inoubliables.</p>
-      </div>
-    </div>
-  </section>
+<!-- PAIEMENT -->
+<section id="paiement" class="payment-section">
+  <div class="pay-wrap">
+    <div class="pay-card">
+      <div class="pay-label">💡 Comment fonctionne le paiement</div>
 
-  <!-- Contact Section -->
-  <section id="contact">
-    <div class="section-chip">
-      <span>📞 CONTACT</span>
-    </div>
-    <h2 class="section-title">
-      Restons <span class="grad">connectés</span>
-    </h2>
-    <div style="max-width: 600px; margin: 40px auto 0; text-align: center;">
-      <p style="color: var(--text-secondary); margin-bottom: 30px;">
-        Une question ? Besoin d'aide pour trouver le photographe idéal ? Notre équipe est là pour vous accompagner.
-      </p>
-      <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 1.5rem;">📧</span>
-          <a href="mailto:contact@fotocongo.com" style="color: var(--accent); text-decoration: none;">contact@fotocongo.com</a>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 1.5rem;">📱</span>
-          <span>+242 XX XXX XXX</span>
-        </div>
-        <div style="display: flex; gap: 20px; margin-top: 20px;">
-          <span style="font-size: 2rem; opacity: 0.7;">📷</span>
-          <span style="font-size: 2rem; opacity: 0.7;">📘</span>
-          <span style="font-size: 2rem; opacity: 0.7;">📱</span>
+      <!-- POUR LES CLIENTS -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:0.78rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">👤 Pour les clients</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+            <span style="font-size:1.4rem">1️⃣</span>
+            <div style="font-size:0.83rem;color:var(--text-secondary)">Trouvez votre photographe et contactez-le</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+            <span style="font-size:1.4rem">2️⃣</span>
+            <div style="font-size:0.83rem;color:var(--text-secondary)">Négociez le tarif et la date directement avec lui</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+            <span style="font-size:1.4rem">3️⃣</span>
+            <div style="font-size:0.83rem;color:var(--text-secondary)">Payez <strong style="color:var(--accent)">directement</strong> le photographe par MTN MoMo ou Airtel Money</div>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
 
-  <!-- Footer -->
-  <footer>
-    <div class="footer-grid">
-      <div class="footer-col">
-        <h4>FotoCongo</h4>
-        <ul>
-          <li><a href="#accueil">Accueil</a></li>
-          <li><a href="#photographes">Photographes</a></li>
-          <li><a href="#comment-ca-marche">Comment ça marche</a></li>
-          <li><a href="#contact">Contact</a></li>
-        </ul>
+      <!-- POUR LES PHOTOGRAPHES -->
+      <div style="padding-top:18px;border-top:1px solid var(--border)">
+        <div style="font-size:0.78rem;font-weight:800;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📸 Pour les photographes</div>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--accent-dim);border-radius:10px;border:1px solid var(--border-hover)">
+          <span style="font-size:1.6rem">💎</span>
+          <div>
+            <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary)">Abonnement Pro : 2 000 FCFA/mois</div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:3px">Payez votre abonnement pour apparaître sur la plateforme et recevoir des clients</div>
+          </div>
+        </div>
+        <button class="pay-btn" style="margin-top:14px" onclick="demanderAbonnement()">S'abonner maintenant — 2 000 FCFA/mois</button>
       </div>
-      <div class="footer-col">
-        <h4>Photographes</h4>
-        <ul>
-          <li><a href="#" onclick="openModal('signup')">Devenir photographe</a></li>
-          <li><a href="#">Tarifs</a></li>
-          <li><a href="#">Conditions</a></li>
-          <li><a href="#">FAQ</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h4>Légal</h4>
-        <ul>
-          <li><a href="#">Mentions légales</a></li>
-          <li><a href="#">CGU</a></li>
-          <li><a href="#">Politique de confidentialité</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h4>Suivez-nous</h4>
-        <ul>
-          <li><a href="#">Instagram</a></li>
-          <li><a href="#">Facebook</a></li>
-          <li><a href="#">WhatsApp</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      © 2024 FotoCongo. Tous droits réservés. Congo-Brazzaville.
-    </div>
-  </footer>
 
-  <!-- Modals -->
-  <div id="login-modal" class="modal">
-    <div class="modal-content">
-      <span class="modal-close" onclick="closeModal('login')">&times;</span>
-      <h2>Connexion</h2>
-      <input type="email" id="login-email" placeholder="Email" />
-      <input type="password" id="login-pwd" placeholder="Mot de passe" />
-      <button class="modal-btn" onclick="connecter(document.getElementById('login-email').value, document.getElementById('login-pwd').value)">Se connecter</button>
-      <div class="modal-switch">
-        Pas encore de compte ? <span onclick="switchModal('login', 'signup')">S'inscrire</span>
+      <!-- INSTRUCTIONS APRÈS DEMANDE -->
+      <div id="paiement-instructions" style="display:none;margin-top:16px;padding:16px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+        <div style="font-size:0.82rem;font-weight:700;color:var(--accent);margin-bottom:8px">📱 Instructions de paiement :</div>
+        <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6">
+          Envoyez <strong style="color:var(--text-primary)">2 000 FCFA</strong> via MTN MoMo ou Airtel au :<br>
+          <strong style="color:var(--accent);font-size:1rem">FotoCongo Services</strong><br>
+          Votre compte sera activé dans les <strong>24h</strong> après réception. ✅
+        </div>
       </div>
+    </div>
+
+    <div class="pay-text-side">
+      <div class="section-chip">🤝 Modèle transparent</div>
+      <h2 class="section-title">Simple, direct, <span class="grad">sans intermédiaire</span></h2>
+      <ul class="check-list">
+        <li><span class="check-icon">✅</span><strong>100% du tarif</strong> va directement au photographe — FotoCongo ne prend aucune commission sur les missions</li>
+        <li><span class="check-icon">✅</span>Les clients et photographes se mettent d'accord librement sur le prix</li>
+        <li><span class="check-icon">✅</span>Paiement entre particuliers via MTN MoMo ou Airtel Money</li>
+        <li><span class="check-icon">💎</span>FotoCongo gagne uniquement les <strong>abonnements mensuels</strong> des photographes (2 000 FCFA/mois)</li>
+        <li><span class="check-icon">🔒</span>Vos coordonnées sont protégées — visibles uniquement aux membres connectés</li>
+      </ul>
     </div>
   </div>
+</section>
 
-  <div id="signup-modal" class="modal">
-    <div class="modal-content">
-      <span class="modal-close" onclick="closeModal('signup')">&times;</span>
-      <h2>Inscription</h2>
-      <input type="text" id="signup-nom" placeholder="Nom complet" />
-      <input type="email" id="signup-email" placeholder="Email" />
-      <input type="password" id="signup-pwd" placeholder="Mot de passe" />
-      <input type="text" id="signup-ville" placeholder="Ville" />
-      <select id="signup-role">
-        <option value="client">Client (je cherche un photographe)</option>
-        <option value="photographe">Photographe (je propose mes services)</option>
-      </select>
-      <button class="modal-btn" onclick="inscrire(
-        document.getElementById('signup-email').value,
-        document.getElementById('signup-pwd').value,
-        document.getElementById('signup-nom').value,
-        document.getElementById('signup-ville').value,
-        document.getElementById('signup-role').value
-      )">S'inscrire</button>
-      <div class="modal-switch">
-        Déjà inscrit ? <span onclick="switchModal('signup', 'login')">Se connecter</span>
+<!-- MODAL CONTACT PHOTOGRAPHE -->
+<div id="contact-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:20px" onclick="if(event.target.id==='contact-modal')this.style.display='none'">
+  <div style="background:var(--bg-card);border-radius:20px;border:1px solid var(--border-hover);padding:36px;width:100%;max-width:400px;text-align:center">
+    <div style="font-size:2.5rem;margin-bottom:12px">📸</div>
+    <div style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;margin-bottom:6px" id="contact-modal-name">Photographe</div>
+    <div style="font-size:0.83rem;color:var(--text-muted);margin-bottom:24px">Contactez ce photographe directement</div>
+    <div style="background:var(--accent-dim);border:1px solid var(--border-hover);border-radius:12px;padding:16px;margin-bottom:20px">
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Numéro Mobile Money</div>
+      <div style="font-size:1.2rem;font-weight:800;color:var(--accent)" id="contact-modal-tel">—</div>
+    </div>
+    <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6;margin-bottom:20px">
+      📱 Contactez ce photographe via <strong>WhatsApp ou appel</strong> pour discuter de votre projet et fixer le tarif. Le paiement se fait <strong>directement entre vous</strong>.
+    </div>
+    <button onclick="document.getElementById('contact-modal').style.display='none'" class="pay-btn">Fermer</button>
+  </div>
+</div>
+
+<!-- TARIFS -->
+<section id="tarifs" class="pricing-section">
+  <div style="text-align:center;margin-bottom:52px">
+    <div class="section-chip" style="margin:0 auto 14px">💎 Nos offres</div>
+    <h2 class="section-title" style="margin:0 auto;text-align:center">Abonnement <span class="grad">photographe</span></h2>
+    <p style="color:var(--text-secondary);margin-top:12px;font-size:0.88rem">Rejoignez FotoCongo et recevez des clients. <strong style="color:var(--accent)">Inscription gratuite pour les clients.</strong></p>
+  </div>
+  <div class="pricing-grid">
+
+    <!-- CLIENTS : GRATUIT -->
+    <div class="price-card">
+      <div class="price-tier">👤 Client</div>
+      <div class="price-amount">0 <span>FCFA</span></div>
+      <div class="price-desc">L'accès est totalement gratuit pour les clients</div>
+      <ul class="price-features">
+        <li><span class="feat-y">✓</span> Parcourir tous les photographes</li>
+        <li><span class="feat-y">✓</span> Contacter les photographes</li>
+        <li><span class="feat-y">✓</span> Payer directement le photographe</li>
+        <li><span class="feat-y">✓</span> Laisser des avis</li>
+        <li><span class="feat-y">✓</span> Aucune commission prélevée</li>
+      </ul>
+      <button class="price-cta price-cta-outline" onclick="openModal('signup')">S'inscrire gratuitement</button>
+    </div>
+
+    <!-- PHOTOGRAPHE PRO -->
+    <div class="price-card featured">
+      <div class="price-badge">⭐ Pour les photographes</div>
+      <div class="price-tier">📸 Photographe Pro</div>
+      <div class="price-amount">2 000 <span>FCFA/mois</span></div>
+      <div class="price-desc">Apparaissez sur la plateforme et recevez des clients</div>
+      <ul class="price-features">
+        <li><span class="feat-y">✓</span> Profil public visible par tous</li>
+        <li><span class="feat-y">✓</span> Portfolio photos illimité</li>
+        <li><span class="feat-y">✓</span> Clients vous contactent directement</li>
+        <li><span class="feat-y">✓</span> <strong>0% de commission</strong> sur vos missions</li>
+        <li><span class="feat-y">✓</span> Badge "Photographe Vérifié" ✨</li>
+        <li><span class="feat-y">✓</span> Vous gardez 100% de vos revenus</li>
+      </ul>
+      <button class="price-cta price-cta-grad" onclick="openModal('signup')">Rejoindre — 2 000 FCFA/mois</button>
+    </div>
+
+    <!-- STUDIO -->
+    <div class="price-card">
+      <div class="price-tier">🏢 Studio / Agence</div>
+      <div class="price-amount">8 000 <span>FCFA/mois</span></div>
+      <div class="price-desc">Pour les studios avec plusieurs photographes</div>
+      <ul class="price-features">
+        <li><span class="feat-y">✓</span> Jusqu'à 5 photographes</li>
+        <li><span class="feat-y">✓</span> Page studio dédiée</li>
+        <li><span class="feat-y">✓</span> Mise en avant prioritaire</li>
+        <li><span class="feat-y">✓</span> <strong>0% de commission</strong> sur les missions</li>
+        <li><span class="feat-y">✓</span> Support prioritaire</li>
+      </ul>
+      <button class="price-cta price-cta-outline" onclick="openModal('signup')">Contacter l'équipe</button>
+    </div>
+
+  </div>
+
+  <!-- NOTE TRANSPARENCE -->
+  <div style="margin-top:40px;padding:24px;background:var(--accent-dim);border:1px solid var(--border-hover);border-radius:16px;text-align:center;max-width:700px;margin-left:auto;margin-right:auto">
+    <div style="font-size:1.3rem;margin-bottom:10px">💡</div>
+    <div style="font-weight:700;font-size:1rem;margin-bottom:8px;color:var(--text-primary)">Notre modèle est 100% transparent</div>
+    <div style="font-size:0.85rem;color:var(--text-secondary);line-height:1.7">
+      FotoCongo gagne uniquement sur les <strong style="color:var(--accent)">abonnements mensuels des photographes</strong>.<br>
+      Les clients cherchent gratuitement. Les paiements entre clients et photographes sont <strong style="color:var(--accent)">directs et privés</strong> — FotoCongo n'intervient pas.
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-logo">FotoCongo</div>
+      <div class="footer-desc">La plateforme qui connecte les meilleurs photographes du Congo Brazzaville avec leurs clients depuis 2025.</div>
+    </div>
+    <div class="footer-col">
+      <h4>Plateforme</h4>
+      <a href="#">Trouver un photographe</a>
+      <a href="#">Devenir photographe</a>
+      <a href="#">Comment ça marche</a>
+      <a href="#tarifs">Tarifs</a>
+    </div>
+    <div class="footer-col">
+      <h4>Villes</h4>
+      <a href="#">Brazzaville</a>
+      <a href="#">Pointe-Noire</a>
+      <a href="#">Dolisie</a>
+      <a href="#">Autres villes</a>
+    </div>
+    <div class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Centre d'aide</a>
+      <a href="/cdn-cgi/l/email-protection#e2919792928d9096a2848d968d818d8c858dcc818d8f">Nous contacter</a>
+      <a href="#">Conditions d'utilisation</a>
+      <a href="#">Politique de confidentialité</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 FotoCongo · Tous droits réservés · Congo Brazzaville 🇨🇬</div>
+    <div style="font-size:0.78rem;color:var(--text-muted)">Mode sombre 🌙</div>
+  </div>
+</footer>
+
+<!-- SPOTLIGHT PUB AUTOMATIQUE -->
+<div id="spotlight-overlay" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:400;width:100%;max-width:420px;padding:0 16px;transition:opacity 0.3s">
+  <div id="spotlight-card" style="background:var(--bg-card);border:1px solid var(--border-hover);border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Connexion</button>
+      <button class="modal-tab" id="tab-signup" onclick="switchTab('signup')">Inscription</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+// TOGGLE THÈME — VERSION CORRIGÉE
+// ════════════════════════════════════════
+function toggleTheme() {
+  const html = document.documentElement;
+  const isLight = html.getAttribute('data-theme') === 'light';
+  const next = isLight ? 'dark' : 'light';
+  html.setAttribute('data-theme', next);
+  try { localStorage.setItem('fc-theme', next); } catch(e) {}
+  updateThemeIcons(next);
+}
+
+function updateThemeIcons(theme) {
+  const moon = document.getElementById('icon-moon');
+  const sun  = document.getElementById('icon-sun');
+  if (!moon || !sun) return;
+  if (theme === 'dark') {
+    moon.style.opacity = '1'; moon.style.transform = 'scale(1.2)';
+    sun.style.opacity  = '0.35'; sun.style.transform = 'scale(1)';
+  } else {
+    sun.style.opacity  = '1'; sun.style.transform = 'scale(1.2)';
+    moon.style.opacity = '0.35'; moon.style.transform = 'scale(1)';
+  }
+}
+
+// Appliquer thème sauvegardé IMMÉDIATEMENT (avant DOMContentLoaded)
+(function() {
+  let saved = 'dark';
+  try { saved = localStorage.getItem('fc-theme') || 'dark'; } catch(e) {}
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+
+// Mettre à jour les icônes après chargement DOM
+document.addEventListener('DOMContentLoaded', function() {
+  let saved = 'dark';
+  try { saved = localStorage.getItem('fc-theme') || 'dark'; } catch(e) {}
+  updateThemeIcons(saved);
+  // Lancer la pub automatique
+  startSpotlight();
+});
+
+// ════════════════════════════════════════
+// PUB AUTOMATIQUE — SPOTLIGHT PHOTOGRAPHE
+// ════════════════════════════════════════
+// Affiche pendant 5 secondes toutes les 5 minutes
+// Gratuit le 1er mois, payant ensuite
+
+const spotlightPhotos = [
+  { nom:"Arsène Mavoungou", spec:"Mariage & Famille", ville:"Brazzaville", emoji:"💒", cover:"c-sunset",  avis:48, note:"5.0", depuis: 0  },
+  { nom:"Cynthia Nzaou",    spec:"Portrait & Mode",   ville:"Pointe-Noire",emoji:"🎭", cover:"c-ocean",   avis:32, note:"4.9", depuis: 0  },
+  { nom:"Patrick Moukoko",  spec:"Événements",        ville:"Brazzaville", emoji:"🎉", cover:"c-rose",    avis:61, note:"4.7", depuis: 25 },
+  { nom:"Gloria Kimpa",     spec:"Mariage & Cérémonie",ville:"Brazzaville",emoji:"✨", cover:"c-fire",    avis:43, note:"4.9", depuis: 15 },
+];
+let spotlightIndex = 0;
+let spotlightTimer = null;
+let spotlightCooldown = null;
+
+function startSpotlight() {
+  // 1ère pub après 10 secondes, puis toutes les 5 minutes
+  spotlightTimer = setTimeout(function() {
+    showSpotlight();
+    spotlightCooldown = setInterval(showSpotlight, 5 * 60 * 1000); // toutes les 5 min
+  }, 10000);
+}
+
+function showSpotlight() {
+  const p = spotlightPhotos[spotlightIndex % spotlightPhotos.length];
+  spotlightIndex++;
+
+  const estPayant = p.depuis > 30;
+
+  const badge = estPayant
+    ? `<div style="background:linear-gradient(135deg,#FFD700,#FF8C00);color:#1a0a00;font-size:0.65rem;font-weight:800;padding:3px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px">⭐ Sponsorisé</div>`
+    : `<div style="background:rgba(0,200,150,0.15);border:1px solid rgba(0,200,150,0.3);color:#00C896;font-size:0.65rem;font-weight:800;padding:3px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px">🆓 1er mois gratuit</div>`;
+
+  // Bloc paiement affiché seulement si le mois gratuit est terminé
+  const paiementBlock = estPayant ? '' : `
+    <div style="margin-top:12px;padding:12px;background:rgba(0,102,255,0.08);border:1px solid rgba(0,102,255,0.2);border-radius:10px">
+      <div style="font-size:0.72rem;font-weight:800;color:#00AAFF;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⏳ Offre gratuite — encore ${30 - p.depuis} jours</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.5">
+        Après 1 mois, continuez votre visibilité pour <strong style="color:var(--text-primary)">2 000 FCFA/mois</strong> en envoyant le montant au :<br>
+        <strong style="color:#00AAFF;font-size:0.9rem">📱 FotoCongo Services MoMo</strong>
+      </div>
+    </div>`;
+
+  const paiementPayant = estPayant ? `
+    <div style="margin-top:12px;padding:12px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:10px">
+      <div style="font-size:0.72rem;font-weight:800;color:#FFD700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">💳 Pub active — abonnement payé</div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.5">
+        Renouvellement mensuel de <strong style="color:var(--text-primary)">2 000 FCFA</strong> via :<br>
+        <strong style="color:#FFD700;font-size:0.9rem">📱 MTN MoMo / Airtel — FotoCongo Services</strong>
+      </div>
+    </div>` : '';
+
+  const overlay = document.getElementById('spotlight-overlay');
+  const card    = document.getElementById('spotlight-card');
+
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">📢 Photographe à la une</div>
+      ${badge}
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+      <div class="${p.cover}" style="width:66px;height:66px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0">${p.emoji}</div>
+      <div>
+        <div style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;color:var(--text-primary)">${p.nom}</div>
+        <div style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-top:2px">${p.spec}</div>
+        <div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px">📍 ${p.ville} · ★ ${p.note} (${p.avis} avis)</div>
       </div>
     </div>
-  </div>
-
-  <div id="contact-modal" class="modal">
-    <div class="modal-content">
-      <span class="modal-close" onclick="document.getElementById('contact-modal').style.display='none'">&times;</span>
-      <h2>Contact</h2>
-      <p>Pour contacter <span id="contact-modal-name"></span> :</p>
-      <p style="font-size: 1.5rem; margin: 20px 0; text-align: center;" id="contact-modal-tel"></p>
-      <p style="color: var(--text-muted);">Discutez directement avec le photographe pour convenir des détails.</p>
+    ${paiementBlock}
+    ${paiementPayant}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
+      <div style="height:4px;flex:1;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-right:12px">
+        <div id="spotlight-bar" style="height:100%;background:var(--grad-sunset);border-radius:4px;width:100%;transition:width 5s linear"></div>
+      </div>
+      <button onclick="closeSpotlight()" style="padding:8px 18px;border-radius:8px;border:none;background:var(--grad-dawn);color:white;font-family:var(--font-body);font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap">Voir le profil →</button>
     </div>
-  </div>
+  `;
 
-  <!-- Paiement instructions -->
-  <div id="paiement-instructions" style="display: none; position: fixed; bottom: 20px; left: 20px; right: 20px; background: var(--bg-card); padding: 20px; border-radius: 12px; box-shadow: var(--shadow); z-index: 1000; border: 1px solid var(--accent);">
-    <span style="position: absolute; top: 10px; right: 10px; cursor: pointer;" onclick="this.parentElement.style.display='none'">&times;</span>
-    <h3 style="margin-bottom: 10px;">📲 Paiement par Mobile Money</h3>
-    <p>Envoyez <strong>2 000 FCFA</strong> au numéro :</p>
-    <p style="font-size: 1.5rem; margin: 10px 0; color: var(--accent);">+242 XX XXX XXX</p>
-    <p>(MTN FotoCongo Services)</p>
-    <p style="margin-top: 10px;">Votre abonnement sera activé manuellement après vérification.</p>
-  </div>
+  overlay.style.display = 'flex';
+  setTimeout(() => {
+    const b = document.getElementById('spotlight-bar');
+    if (b) b.style.width = '0%';
+  }, 50);
+  setTimeout(closeSpotlight, 5000);
+}
 
+function closeSpotlight() {
+  const overlay = document.getElementById('spotlight-overlay');
+  if (overlay) {
+    overlay.style.opacity = '0';
+    setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; }, 300);
+  }
+}
+
+// ════════════════ RESTE DES FONCTIONS ════════════════
+
+// ════════════════ CARTES PHOTO ════════════════
+function getDemodCards() {
+  const demos = [
+    {nom:"Arsène Mavoungou", ville:"Brazzaville", spec:"Mariage & Famille", cover:"c-sunset", emoji:"💒", note:"5.0", avis:48, prix:"50 000", type:"PRO", init:"A"},
+    {nom:"Cynthia Nzaou",    ville:"Pointe-Noire", spec:"Portrait & Mode",  cover:"c-ocean",  emoji:"🎭", note:"4.9", avis:32, prix:"35 000", type:"PRO", init:"C"},
+    {nom:"Patrick Moukoko",  ville:"Brazzaville",  spec:"Événements",       cover:"c-rose",   emoji:"🎉", note:"4.7", avis:61, prix:"40 000", type:"PRO", init:"P"},
+    {nom:"Laeticia Bongo",   ville:"Brazzaville",  spec:"Corporate",        cover:"c-velvet", emoji:"🏢", note:"4.8", avis:19, prix:"45 000", type:"PRO", init:"L"},
+    {nom:"Fiston Ngoma",     ville:"Pointe-Noire", spec:"Nature & Voyage",  cover:"c-emerald",emoji:"🌿", note:"4.6", avis:27, prix:"30 000", type:"AMATeur", init:"F"},
+    {nom:"Gloria Kimpa",     ville:"Brazzaville",  spec:"Mariage",          cover:"c-fire",   emoji:"✨", note:"4.9", avis:43, prix:"55 000", type:"PRO", init:"G"},
+  ];
+  return demos.map(p => makeCard(null, p)).join('');
+}
+
+function makeCard(id, p) {
+  return `
+  <div class="photog-card">
+    <div class="photog-cover ${p.cover||'c-sunset'}">
+      <span>${p.emoji||'📸'}</span>
+      <div class="${p.type==='PRO'?'badge-pro':'badge-ama'}">${p.type||'PRO'}</div>
+    </div>
+    <div class="photog-info">
+      <div class="photog-top">
+        <div class="avatar">${(p.nom||'?')[0]}</div>
+        <div>
+          <div class="photog-name">${p.nom}</div>
+          <div class="photog-city">📍 ${p.ville}</div>
+        </div>
+      </div>
+      <span class="photog-spec">${p.spec||p.specialite||'Photographe'}</span>
+      <div class="photog-meta">
+        <div class="stars">★★★★★ <span>${p.note||'5.0'} (${p.avis||0} avis)</span></div>
+        <div class="price">${p.prix||'—'} FCFA <small>/séance</small></div>
+      </div>
+      <button class="photog-btn" onclick="contacterPhotographe('${id||''}','${p.nom}','${p.tel||'06 XXX XXX'}')">📱 Contacter ce photographe</button>
+    </div>
+  </div>`;
+}
+
+// ════════════════ MODAL ════════════════
+let selectedRole = 'client';
+function openModal(type) { document.getElementById('modal').classList.add('open'); switchTab(type); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function closeModalOutside(e) { if(e.target.id==='modal') closeModal(); }
+
+function switchTab(type) {
+  ['login','signup'].forEach(t => document.getElementById('tab-'+t).classList.toggle('active', t===type));
+  const body = document.getElementById('modal-body');
+  if(type==='login') {
+    body.innerHTML = `
+      <div class="modal-title">Bon retour ! 👋</div>
+      <div class="modal-sub">Connectez-vous à votre compte FotoCongo</div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="l-email" type="email" placeholder="votre@email.com"/></div>
+      <div class="form-group"><label class="form-label">Mot de passe</label><input class="form-input" id="l-pwd" type="password" placeholder="••••••••"/></div>
+      <button class="submit-btn" onclick="connecter(document.getElementById('l-email').value,document.getElementById('l-pwd').value)">Se connecter</button>`;
+  } else {
+    body.innerHTML = `
+      <div class="modal-title">Rejoignez FotoCongo 🎉</div>
+      <div class="modal-sub">Créez votre compte en 1 minute</div>
+      <div class="form-group"><label class="form-label">Vous êtes...</label>
+        <div class="role-grid">
+          <button class="role-btn active" onclick="setRole(this,'photographe')"><span class="role-icon">📸</span>Photographe</button>
+          <button class="role-btn" onclick="setRole(this,'client')"><span class="role-icon">👤</span>Client</button>
+          <button class="role-btn" onclick="setRole(this,'entreprise')"><span class="role-icon">🏢</span>Entreprise</button>
+          <button class="role-btn" onclick="setRole(this,'amateur')"><span class="role-icon">🌟</span>Photo amateur</button>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Nom complet</label><input class="form-input" id="r-nom" placeholder="Jean-Paul Moukoko"/></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="r-email" type="email" placeholder="votre@email.com"/></div>
+      <div class="form-group"><label class="form-label">Ville</label>
+        <select class="form-select" id="r-ville"><option>Brazzaville</option><option>Pointe-Noire</option><option>Dolisie</option><option>Autre</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Mot de passe</label><input class="form-input" id="r-pwd" type="password" placeholder="••••••••"/></div>
+      <button class="submit-btn" onclick="inscrire(document.getElementById('r-email').value,document.getElementById('r-pwd').value,document.getElementById('r-nom').value,document.getElementById('r-ville').value,selectedRole)">Créer mon compte</button>`;
+  }
+}
+function setRole(el, role) { document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); selectedRole=role; }
+
+function filterTab(el) { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+function selectMM(el) { document.querySelectorAll('.mm-option').forEach(m=>m.classList.remove('active')); el.classList.add('active'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Charger les cartes au démarrage
+document.getElementById('photogs-grid').innerHTML = getDemodCards();
+</script>
+<!-- CinetPay SDK -->
+<script src="https://cdn.cinetpay.com/seamless/main.js"></script>
   <script>
-    // Fonctions globales pour les modals
-    window.openModal = function(type) {
-      document.getElementById(type + '-modal').style.display = 'flex';
-    };
-    
-    window.closeModal = function(type) {
-      document.getElementById(type + '-modal').style.display = 'none';
-    };
-    
-    window.switchModal = function(from, to) {
-      closeModal(from);
-      openModal(to);
-    };
-    
-    window.showToast = function(message) {
-      const toast = document.createElement('div');
-      toast.className = 'toast';
-      toast.textContent = message;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    };
-    
-    window.getDemodCards = function() {
-      return `
-        <div class="photog-card">
-          <div class="photog-cover"></div>
-          <div class="photog-avatar">📸</div>
-          <div class="photog-info">
-            <div class="photog-name">Marie K.</div>
-            <div class="photog-location">📍 Brazzaville</div>
-            <div class="photog-tags">
-              <span class="photog-tag">Mariage</span>
-              <span class="photog-tag">Portrait</span>
-            </div>
-            <div class="photog-price">À partir de 50 000 FCFA</div>
-            <button class="photog-btn" onclick="contacterPhotographe('demo1', 'Marie K.', '+242 06 XXX XXX')">Contacter</button>
-          </div>
-        </div>
-        <div class="photog-card">
-          <div class="photog-cover"></div>
-          <div class="photog-avatar">📷</div>
-          <div class="photog-info">
-            <div class="photog-name">Jean P.</div>
-            <div class="photog-location">📍 Pointe-Noire</div>
-            <div class="photog-tags">
-              <span class="photog-tag">Événement</span>
-              <span class="photog-tag">Concert</span>
-            </div>
-            <div class="photog-price">À partir de 40 000 FCFA</div>
-            <button class="photog-btn" onclick="contacterPhotographe('demo2', 'Jean P.', '+242 05 XXX XXX')">Contacter</button>
-          </div>
-        </div>
-      `;
-    };
-    
-    window.makeCard = function(id, data) {
-      return `
-        <div class="photog-card">
-          <div class="photog-cover"></div>
-          <div class="photog-avatar">📸</div>
-          <div class="photog-info">
-            <div class="photog-name">${data.nom || 'Photographe'}</div>
-            <div class="photog-location">📍 ${data.ville || 'Congo'}</div>
-            <div class="photog-tags">
-              <span class="photog-tag">${data.specialite || 'Photographe'}</span>
-            </div>
-            <div class="photog-price">À partir de ${data.tarif || '40 000'} FCFA</div>
-            <button class="photog-btn" onclick="contacterPhotographe('${id}', '${data.nom || 'Photographe'}', '${data.telephone || '+242 XX XXX XXX'}')">Contacter</button>
-          </div>
-        </div>
-      `;
-    };
-  </script><script>
   // ============================================
   // FONCTIONS MANQUANTES - À AJOUTER
   // ============================================
@@ -1453,4 +1697,5 @@ footer {
   });
 </script>
 </body>
+
 </html>
