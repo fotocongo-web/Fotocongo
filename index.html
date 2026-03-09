@@ -102,7 +102,7 @@
       statut: 'en_attente',
       createdAt: serverTimestamp()
     });
-    showToast("✅ Demande envoyée ! Envoyez 2 000 FCFA au +242 06 979 59 01 (MTN FotoCongo Services) puis attendez l'activation.");
+    showToast("✅ Demande envoyée ! Envoyez 2 000 FCFA au +242 XX XXX XXX (MTN FotoCongo Services) puis attendez l'activation.");
     // Afficher les instructions de paiement
     document.getElementById('paiement-instructions').style.display = 'block';
   };
@@ -145,6 +145,42 @@
   window.serverTimestamp = serverTimestamp;
   window.addDoc = addDoc;
   window.collection = collection;
+
+  // ✅ Exposer contacterPhotographe globalement
+  window.contacterPhotographe = async (photoId, nomPhoto, telPhoto) => {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast("⚠️ Connectez-vous pour contacter ce photographe");
+      openModal('login');
+      return;
+    }
+    await addDoc(collection(db, "mises_en_relation"), {
+      clientId: user.uid,
+      clientEmail: user.email,
+      photographeId: photoId,
+      photographeNom: nomPhoto,
+      statut: 'initié',
+      createdAt: serverTimestamp()
+    }).catch(() => {});
+    document.getElementById('contact-modal-name').textContent = nomPhoto;
+    document.getElementById('contact-modal-tel').textContent = telPhoto || 'Numéro visible après confirmation';
+    document.getElementById('contact-modal').style.display = 'flex';
+    showToast(`📱 Contact de ${nomPhoto} ouvert !`);
+  };
+
+  // ✅ Exposer demanderAbonnement globalement
+  window.demanderAbonnement = async () => {
+    const user = auth.currentUser;
+    if (!user) { showToast("⚠️ Connectez-vous d'abord"); openModal('login'); return; }
+    await addDoc(collection(db, "demandes_abonnement"), {
+      userId: user.uid,
+      email: user.email,
+      montant: 2000,
+      statut: 'en_attente',
+      createdAt: serverTimestamp()
+    }).catch(() => {});
+    showToast("✅ Demande envoyée ! Activation sous 24h.");
+  };
 </script>
 
 <style>
@@ -152,7 +188,7 @@
    VARIABLES DE THÈMES
 ═══════════════════════════════════════════ */
 :root {
-  /* Dégradés photographiques — Bleu & Bleu Ciel */
+  /* Dégradés photographiques — Bleu, Bleu Ciel & Cyan Turquoise */
   --grad-sunset:  linear-gradient(135deg, #0066FF 0%, #00AAFF 55%, #00D4FF 100%);
   --grad-golden:  linear-gradient(135deg, #0052CC 0%, #0099FF 55%, #33C3FF 100%);
   --grad-lens:    linear-gradient(135deg, #1A3A8F 0%, #0066FF 55%, #00C3FF 100%);
@@ -161,6 +197,11 @@
   --grad-emerald: linear-gradient(135deg, #0077CC 0%, #00C3FF 100%);
   --grad-fire:    linear-gradient(135deg, #001F80 0%, #0066FF 100%);
   --grad-ocean:   linear-gradient(135deg, #0055BB 0%, #00AAFF 100%);
+  /* 🆕 3e couleur : Cyan Turquoise — ambiance photo studio */
+  --grad-cyan:    linear-gradient(135deg, #00C9C9 0%, #00E5CC 50%, #00FFD0 100%);
+  --cyan:         #00D4CC;
+  --cyan-dim:     rgba(0,212,204,0.12);
+  --cyan-light:   #E0FFFC;
 
   /* Polices */
   --font-display: 'Cormorant Garamond', serif;
@@ -936,62 +977,29 @@ section { padding: 80px 5%; }
 }
 .modal-close:hover { color: var(--text-primary); }
 
-  <!-- BOUTON DE PAIEMENT SIMPLE -->
-<div style="background: #1e2a3a; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
-   <h3 style="color: #66b2ff;">📱 Paiement Mobile Money (MTN)</h3>
-   <p style="font-size: 24px; margin: 20px 0;">2 000 FCFA</p>
-   
-   <button onclick="afficherInstructions()" style="background: #ffcc00; color: #000; padding: 15px 30px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-      💰 Payer avec Mobile Money
-   </button>
-   
-   <!-- Les instructions apparaissent ici quand on clique -->
-   <div id="instructions-momo" style="display: none; margin-top: 20px; padding: 20px; background: #0a1a2a; border-radius: 8px;">
-      <h4>📲 ÉTAPES À SUIVRE :</h4>
-      
-      <div style="text-align: left; margin: 20px 0;">
-         <p>1️⃣ Ouvre ton application <strong>MTN MoMo</strong></p>
-         <p>2️⃣ Choisis <strong>"Payer"</strong></p>
-         <p>3️⃣ Entre le numéro : <strong style="font-size: 20px; color: #ffcc00;">06 723 62 26</strong></p>
-         <p>4️⃣ Montant : <strong>2 000 FCFA</strong></p>
-         <p>5️⃣ Motif : <strong>FotoCongo + ton email</strong></p>
-      </div>
-      
-      <button onclick="confirmerPaiement()" style="background: #4CAF50; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: bold; width: 100%;">
-         ✅ J'AI EFFECTUÉ LE PAIEMENT
-      </button>
-   </div>
-</div>
+/* TOGGLE THÈME */
+[data-theme="dark"]  { --toggle-bg: #0D1A2E; }
+[data-theme="light"] { --toggle-bg: #C8E0FF; }
+.theme-knob-light { transform: translateX(20px) !important; }
 
-<!-- Message de confirmation -->
-<div id="message-paiement"></div>
+/* 3e COULEUR CYAN — badges pro, certains accents */
+.badge-pro { background: var(--grad-cyan) !important; color: #002A28 !important; }
+.section-chip { border: 1px solid var(--cyan-dim); }
+.how-card:nth-child(3)::before { background: var(--grad-cyan) !important; }
+.mosaic-tag { background: var(--grad-cyan) !important; color: #003330 !important; }
+.hero-chip { border-color: rgba(0,212,204,0.3); }
+.pulse-dot { background: var(--cyan) !important; }
+/* TOGGLE THÈME */
+[data-theme="dark"]  { --toggle-bg: #0D1A2E; }
+[data-theme="light"] { --toggle-bg: #C8E0FF; }
 
-<script>
-// Fonction pour afficher les instructions
-function afficherInstructions() {
-   document.getElementById('instructions-momo').style.display = 'block';
-}
+/* 3e COULEUR CYAN — badges pro, certains accents */
+.badge-pro { background: var(--grad-cyan) !important; color: #002A28 !important; }
+.how-card:nth-child(3)::before { background: var(--grad-cyan) !important; }
+.mosaic-tag { background: var(--grad-cyan) !important; color: #003330 !important; }
+.pulse-dot { background: var(--cyan) !important; }
+.stat-num { background: var(--grad-cyan); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 
-// Fonction quand le client a payé
-function confirmerPaiement() {
-   const message = document.getElementById('message-paiement');
-   message.innerHTML = `
-      <div style="background: #4CAF50; color: white; padding: 15px; border-radius: 8px; margin-top: 20px;">
-         ✅ Merci ! Votre demande a été enregistrée.<br>
-         <strong>Votre abonnement sera activé dans les 24h.</strong>
-      </div>
-   `;
-   
-   // Cacher les instructions
-   document.getElementById('instructions-momo').style.display = 'none';
-   
-   // Ici on peut enregistrer dans Firebase (optionnel)
-   if (typeof db !== 'undefined' && auth?.currentUser) {
-      // Enregistrer la demande (si tu veux)
-      console.log("Paiement enregistré pour " + auth.currentUser.email);
-   }
-}
-</script>
 /* ═══════════════════════════════════════════
    TOAST
 ═══════════════════════════════════════════ */
@@ -1070,9 +1078,22 @@ footer {
     <li><a href="#tarifs">Tarifs</a></li>
     <li><a href="admin.html">Admin 🔒</a></li>
   </ul>
-  <div id="nav-btns">
-    <button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
-    <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>
+  <div style="display:flex;align-items:center;gap:12px">
+    <!-- TOGGLE THÈME -->
+    <button onclick="toggleTheme()" id="theme-btn"
+      style="width:46px;height:26px;border-radius:13px;border:none;cursor:pointer;
+             position:relative;background:var(--toggle-bg);transition:background 0.3s;flex-shrink:0"
+      aria-label="Changer de thème">
+      <span id="theme-knob"
+        style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+               background:var(--grad-sunset);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+               box-shadow:0 2px 6px rgba(0,100,255,0.4);display:flex;align-items:center;
+               justify-content:center;font-size:11px">🌙</span>
+    </button>
+    <div id="nav-btns">
+      <button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
+      <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>
+    </div>
   </div>
 </nav>
 
@@ -1187,25 +1208,36 @@ footer {
 
       <!-- POUR LES PHOTOGRAPHES -->
       <div style="padding-top:18px;border-top:1px solid var(--border)">
-        <div style="font-size:0.78rem;font-weight:800;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📸 Pour les photographes</div>
-        <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--accent-dim);border-radius:10px;border:1px solid var(--border-hover)">
-          <span style="font-size:1.6rem">💎</span>
-          <div>
-            <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary)">Abonnement Pro : 2 000 FCFA/mois</div>
-            <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:3px">Payez votre abonnement pour apparaître sur la plateforme et recevoir des clients</div>
+        <div style="font-size:0.78rem;font-weight:800;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📸 Abonnement photographe</div>
+
+        <!-- CHOIX OPÉRATEUR -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <div id="btn-mtn" onclick="selectOperateur('mtn')" style="padding:14px;border-radius:12px;background:var(--bg-secondary);border:2px solid var(--border);cursor:pointer;text-align:center;transition:all 0.2s">
+            <div style="font-size:1.5rem">🟡</div>
+            <div style="font-size:0.82rem;font-weight:800;color:var(--text-primary);margin-top:4px">MTN MoMo</div>
+          </div>
+          <div id="btn-airtel" onclick="selectOperateur('airtel')" style="padding:14px;border-radius:12px;background:var(--bg-secondary);border:2px solid var(--border);cursor:pointer;text-align:center;transition:all 0.2s">
+            <div style="font-size:1.5rem">🔴</div>
+            <div style="font-size:0.82rem;font-weight:800;color:var(--text-primary);margin-top:4px">Airtel Money</div>
           </div>
         </div>
-        <button class="pay-btn" style="margin-top:14px" onclick="demanderAbonnement()">S'abonner maintenant — 2 000 FCFA/mois</button>
-      </div>
 
-      <!-- INSTRUCTIONS APRÈS DEMANDE -->
-      <div id="paiement-instructions" style="display:none;margin-top:16px;padding:16px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
-        <div style="font-size:0.82rem;font-weight:700;color:var(--accent);margin-bottom:8px">📱 Instructions de paiement :</div>
-        <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6">
-          Envoyez <strong style="color:var(--text-primary)">2 000 FCFA</strong> via MTN MoMo ou Airtel au :<br>
-          <strong style="color:var(--accent);font-size:1rem">FotoCongo Services</strong><br>
-          Votre compte sera activé dans les <strong>24h</strong> après réception. ✅
+        <!-- INSTRUCTIONS PAIEMENT -->
+        <div id="instructions-momo" style="display:none;padding:16px;background:var(--accent-dim);border:1px solid var(--border-hover);border-radius:12px;margin-bottom:14px">
+          <div id="etapes-momo" style="font-size:0.83rem;color:var(--text-secondary);line-height:1.8"></div>
         </div>
+
+        <button class="pay-btn" onclick="afficherInstructions()">💰 S'abonner — 2 000 FCFA/mois</button>
+
+        <!-- CONFIRMATION -->
+        <div id="paiement-instructions" style="display:none;margin-top:14px">
+          <button onclick="confirmerPaiement()" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#00C896,#00AAFF);color:white;font-family:var(--font-body);font-size:0.9rem;font-weight:800;cursor:pointer">
+            ✅ J'ai effectué le paiement
+          </button>
+        </div>
+
+        <!-- MESSAGE CONFIRMATION -->
+        <div id="message-paiement"></div>
       </div>
     </div>
 
@@ -1252,8 +1284,8 @@ footer {
     <!-- CLIENTS : GRATUIT -->
     <div class="price-card">
       <div class="price-tier">👤 Client</div>
-      <div class="price-amount">0 <span>FCFA</span></div>
-      <div class="price-desc">L'accès est totalement gratuit pour les clients</div>
+      <div class="price-amount">500 <span>FCFA</span></div>
+      <div class="price-desc">Inscription unique — accès complet à vie</div>
       <ul class="price-features">
         <li><span class="feat-y">✓</span> Parcourir tous les photographes</li>
         <li><span class="feat-y">✓</span> Contacter les photographes</li>
@@ -1261,15 +1293,19 @@ footer {
         <li><span class="feat-y">✓</span> Laisser des avis</li>
         <li><span class="feat-y">✓</span> Aucune commission prélevée</li>
       </ul>
-      <button class="price-cta price-cta-outline" onclick="openModal('signup')">S'inscrire gratuitement</button>
+      <button class="price-cta price-cta-outline" onclick="openModal('signup')">S'inscrire — 500 FCFA</button>
     </div>
 
     <!-- PHOTOGRAPHE PRO -->
     <div class="price-card featured">
       <div class="price-badge">⭐ Pour les photographes</div>
       <div class="price-tier">📸 Photographe Pro</div>
+      <div style="margin-bottom:6px">
+        <span style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;color:var(--cyan)">500 FCFA</span>
+        <span style="font-size:0.85rem;color:var(--text-muted)"> inscription</span>
+      </div>
       <div class="price-amount">2 000 <span>FCFA/mois</span></div>
-      <div class="price-desc">Apparaissez sur la plateforme et recevez des clients</div>
+      <div class="price-desc">Inscription unique + abonnement mensuel pour rester visible</div>
       <ul class="price-features">
         <li><span class="feat-y">✓</span> Profil public visible par tous</li>
         <li><span class="feat-y">✓</span> Portfolio photos illimité</li>
@@ -1278,12 +1314,16 @@ footer {
         <li><span class="feat-y">✓</span> Badge "Photographe Vérifié" ✨</li>
         <li><span class="feat-y">✓</span> Vous gardez 100% de vos revenus</li>
       </ul>
-      <button class="price-cta price-cta-grad" onclick="openModal('signup')">Rejoindre — 2 000 FCFA/mois</button>
+      <button class="price-cta price-cta-grad" onclick="openModal('signup')">Rejoindre — 500 FCFA + 2 000/mois</button>
     </div>
 
     <!-- STUDIO -->
     <div class="price-card">
       <div class="price-tier">🏢 Studio / Agence</div>
+      <div style="margin-bottom:6px">
+        <span style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;color:var(--cyan)">500 FCFA</span>
+        <span style="font-size:0.85rem;color:var(--text-muted)"> inscription</span>
+      </div>
       <div class="price-amount">8 000 <span>FCFA/mois</span></div>
       <div class="price-desc">Pour les studios avec plusieurs photographes</div>
       <ul class="price-features">
@@ -1299,12 +1339,12 @@ footer {
   </div>
 
   <!-- NOTE TRANSPARENCE -->
-  <div style="margin-top:40px;padding:24px;background:var(--accent-dim);border:1px solid var(--border-hover);border-radius:16px;text-align:center;max-width:700px;margin-left:auto;margin-right:auto">
+  <div style="margin-top:40px;padding:24px;background:var(--cyan-dim);border:1px solid rgba(0,212,204,0.25);border-radius:16px;text-align:center;max-width:700px;margin-left:auto;margin-right:auto">
     <div style="font-size:1.3rem;margin-bottom:10px">💡</div>
     <div style="font-weight:700;font-size:1rem;margin-bottom:8px;color:var(--text-primary)">Notre modèle est 100% transparent</div>
     <div style="font-size:0.85rem;color:var(--text-secondary);line-height:1.7">
-      FotoCongo gagne uniquement sur les <strong style="color:var(--accent)">abonnements mensuels des photographes</strong>.<br>
-      Les clients cherchent gratuitement. Les paiements entre clients et photographes sont <strong style="color:var(--accent)">directs et privés</strong> — FotoCongo n'intervient pas.
+      Inscription unique <strong style="color:var(--cyan)">500 FCFA</strong> pour tous · Les photographes paient <strong style="color:var(--accent)">2 000 FCFA/mois</strong> pour rester visibles.<br>
+      Les paiements entre clients et photographes sont <strong style="color:var(--accent)">directs et privés</strong> — FotoCongo ne prend aucune commission sur les missions.
     </div>
   </div>
 </section>
@@ -1340,7 +1380,16 @@ footer {
   </div>
   <div class="footer-bottom">
     <div class="footer-copy">© 2025 FotoCongo · Tous droits réservés · Congo Brazzaville 🇨🇬</div>
-    <div style="font-size:0.78rem;color:var(--text-muted)">Mode sombre 🌙</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:0.75rem;color:var(--text-muted)">Thème</span>
+      <button onclick="toggleTheme()"
+        style="width:42px;height:22px;border-radius:11px;border:none;cursor:pointer;
+               position:relative;background:var(--toggle-bg);transition:background 0.3s">
+        <span style="position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;
+                     background:var(--grad-sunset);transition:transform 0.3s;font-size:10px;
+                     display:flex;align-items:center;justify-content:center" id="footer-knob">🌙</span>
+      </button>
+    </div>
   </div>
 </footer>
 
@@ -1365,50 +1414,35 @@ footer {
 <div class="toast" id="toast"></div>
 
 <script>
-// ════════════════════════════════════════
-// TOGGLE THÈME — VERSION CORRIGÉE
-// ════════════════════════════════════════
+// ════════════════ THÈME SOMBRE/CLAIR ════════════════
 function toggleTheme() {
-  const html = document.documentElement;
-  const isLight = html.getAttribute('data-theme') === 'light';
-  const next = isLight ? 'dark' : 'light';
+  const html  = document.documentElement;
+  const knob  = document.getElementById('theme-knob');
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  const next  = isDark ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
   try { localStorage.setItem('fc-theme', next); } catch(e) {}
-  updateThemeIcons(next);
-}
-
-function updateThemeIcons(theme) {
-  const moon = document.getElementById('icon-moon');
-  const sun  = document.getElementById('icon-sun');
-  if (!moon || !sun) return;
-  if (theme === 'dark') {
-    moon.style.opacity = '1'; moon.style.transform = 'scale(1.2)';
-    sun.style.opacity  = '0.35'; sun.style.transform = 'scale(1)';
-  } else {
-    sun.style.opacity  = '1'; sun.style.transform = 'scale(1.2)';
-    moon.style.opacity = '0.35'; moon.style.transform = 'scale(1)';
+  if (knob) {
+    knob.textContent = next === 'dark' ? '🌙' : '☀️';
+    knob.style.transform = next === 'light' ? 'translateX(20px)' : 'translateX(0)';
   }
 }
-
-// Appliquer thème sauvegardé IMMÉDIATEMENT (avant DOMContentLoaded)
+// Appliquer thème sauvegardé au chargement
 (function() {
   let saved = 'dark';
   try { saved = localStorage.getItem('fc-theme') || 'dark'; } catch(e) {}
   document.documentElement.setAttribute('data-theme', saved);
+  document.addEventListener('DOMContentLoaded', function() {
+    const knob = document.getElementById('theme-knob');
+    if (knob && saved === 'light') {
+      knob.textContent = '☀️';
+      knob.style.transform = 'translateX(20px)';
+    }
+    startSpotlight();
+  });
 })();
 
-// Mettre à jour les icônes après chargement DOM
-document.addEventListener('DOMContentLoaded', function() {
-  let saved = 'dark';
-  try { saved = localStorage.getItem('fc-theme') || 'dark'; } catch(e) {}
-  updateThemeIcons(saved);
-  // Lancer la pub automatique
-  startSpotlight();
-});
-
-// ════════════════════════════════════════
-// PUB AUTOMATIQUE — SPOTLIGHT PHOTOGRAPHE
-// ════════════════════════════════════════
+// ════════════════ PUB AUTOMATIQUE ════════════════
 // Affiche pendant 5 secondes toutes les 5 minutes
 // Gratuit le 1er mois, payant ensuite
 
@@ -1501,13 +1535,87 @@ function closeSpotlight() {
   }
 }
 
+// ════════════════ PAIEMENT MOBILE MONEY ════════════════
+const NUMERO_MTN    = "06 979 59 01";   // ✅ Ton vrai numéro MTN MoMo
+const NUMERO_AIRTEL = "04 476 34 37";   // ✅ Ton vrai numéro Airtel Money
+
+let operateurSelectionne = null;
+
+function selectOperateur(op) {
+  operateurSelectionne = op;
+  const btnMtn    = document.getElementById('btn-mtn');
+  const btnAirtel = document.getElementById('btn-airtel');
+  const accent    = 'rgba(0,170,255,0.2)';
+  const bord      = 'rgba(0,170,255,0.6)';
+
+  btnMtn.style.border    = op === 'mtn'    ? `2px solid ${bord}` : '2px solid var(--border)';
+  btnMtn.style.background= op === 'mtn'    ? accent : 'var(--bg-secondary)';
+  btnAirtel.style.border = op === 'airtel' ? `2px solid ${bord}` : '2px solid var(--border)';
+  btnAirtel.style.background= op === 'airtel' ? accent : 'var(--bg-secondary)';
+}
+
+function afficherInstructions() {
+  if (!operateurSelectionne) {
+    showToast("⚠️ Choisissez d'abord MTN MoMo ou Airtel Money");
+    return;
+  }
+  const numero = operateurSelectionne === 'mtn' ? NUMERO_MTN : NUMERO_AIRTEL;
+  const nom    = operateurSelectionne === 'mtn' ? 'MTN MoMo' : 'Airtel Money';
+  const emoji  = operateurSelectionne === 'mtn' ? '🟡' : '🔴';
+
+  document.getElementById('etapes-momo').innerHTML = `
+    <div style="font-weight:800;color:var(--accent);margin-bottom:10px">${emoji} Instructions ${nom}</div>
+    <div>1️⃣ Ouvre ton application <strong>${nom}</strong></div>
+    <div>2️⃣ Choisis <strong>"Payer"</strong> ou <strong>"Envoyer"</strong></div>
+    <div>3️⃣ Entre le numéro : <strong style="font-size:1.1rem;color:var(--accent)">${numero}</strong></div>
+    <div>4️⃣ Montant : <strong style="color:var(--accent)">2 000 FCFA</strong></div>
+    <div>5️⃣ Motif : <strong>FotoCongo + ton email</strong></div>
+  `;
+  document.getElementById('instructions-momo').style.display = 'block';
+  document.getElementById('paiement-instructions').style.display = 'block';
+}
+
+function confirmerPaiement() {
+  const user = typeof auth !== 'undefined' ? auth.currentUser : null;
+  if (!user) {
+    showToast("⚠️ Connectez-vous d'abord pour confirmer");
+    openModal('login');
+    return;
+  }
+  // Enregistrer dans Firebase si disponible
+  if (typeof db !== 'undefined' && typeof addDoc !== 'undefined') {
+    addDoc(collection(db, "demandes_abonnement"), {
+      userId: user.uid,
+      email: user.email,
+      operateur: operateurSelectionne || 'mtn',
+      montant: 2000,
+      statut: 'en_attente',
+      createdAt: serverTimestamp()
+    }).catch(() => {});
+  }
+  document.getElementById('message-paiement').innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(0,200,150,0.15),rgba(0,170,255,0.1));
+                border:1px solid rgba(0,200,150,0.4);border-radius:12px;
+                padding:16px;margin-top:14px;text-align:center">
+      <div style="font-size:1.5rem;margin-bottom:8px">🎉</div>
+      <div style="font-weight:800;color:#00C896;font-size:0.95rem">Demande enregistrée !</div>
+      <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:6px;line-height:1.6">
+        Votre abonnement sera activé dans les <strong>24h</strong><br>
+        après réception de votre paiement. Merci !
+      </div>
+    </div>`;
+  document.getElementById('paiement-instructions').style.display = 'none';
+  document.getElementById('instructions-momo').style.display = 'none';
+  showToast("✅ Demande enregistrée ! Activation sous 24h.");
+}
+
 // ════════════════ RESTE DES FONCTIONS ════════════════
 
 // ════════════════ CARTES PHOTO ════════════════
 function getDemodCards() {
   const demos = [
-    {nom:"Ricardo Malonga", ville:"Brazzaville", spec:"Mariage & Famille", cover:"c-sunset", emoji:"💒", note:"5.0", avis:48, prix:"50 000", type:"PRO", init:"A"},
-    {nom:"Erica Nkenda",    ville:"Pointe-Noire", spec:"Portrait & Mode",  cover:"c-ocean",  emoji:"🎭", note:"4.9", avis:32, prix:"35 000", type:"PRO", init:"C"},
+    {nom:"Arsène Mavoungou", ville:"Brazzaville", spec:"Mariage & Famille", cover:"c-sunset", emoji:"💒", note:"5.0", avis:48, prix:"50 000", type:"PRO", init:"A"},
+    {nom:"Cynthia Nzaou",    ville:"Pointe-Noire", spec:"Portrait & Mode",  cover:"c-ocean",  emoji:"🎭", note:"4.9", avis:32, prix:"35 000", type:"PRO", init:"C"},
     {nom:"Patrick Moukoko",  ville:"Brazzaville",  spec:"Événements",       cover:"c-rose",   emoji:"🎉", note:"4.7", avis:61, prix:"40 000", type:"PRO", init:"P"},
     {nom:"Laeticia Bongo",   ville:"Brazzaville",  spec:"Corporate",        cover:"c-velvet", emoji:"🏢", note:"4.8", avis:19, prix:"45 000", type:"PRO", init:"L"},
     {nom:"Fiston Ngoma",     ville:"Pointe-Noire", spec:"Nature & Voyage",  cover:"c-emerald",emoji:"🌿", note:"4.6", avis:27, prix:"30 000", type:"AMATeur", init:"F"},
@@ -1595,20 +1703,5 @@ document.getElementById('photogs-grid').innerHTML = getDemodCards();
 </script>
 <!-- CinetPay SDK -->
 <script src="https://cdn.cinetpay.com/seamless/main.js"></script>
-<!-- BOUTON DE THÈME À AJOUTER DANS NAV PLUS TARD -->
-<script>
-    // Gestionnaire de thème
-    function toggleTheme() {
-        const html = document.documentElement;
-        const current = html.getAttribute('data-theme') || 'dark';
-        const newTheme = current === 'dark' ? 'light' : 'dark';
-        html.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-    }
-    
-    // Appliquer le thème sauvegardé
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-</script>
 </body>
 </html>
