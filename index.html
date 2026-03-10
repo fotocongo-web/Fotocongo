@@ -1014,6 +1014,265 @@ section { padding: 80px 5%; }
 }
 .toast.show { transform: translateY(0) scale(1); opacity: 1; }
 
+/* ═══ ANIMATIONS FLUIDES DE PAGE ═══ */
+@keyframes pageIn {
+  from { opacity:0; transform:translateY(24px) scale(0.98); }
+  to   { opacity:1; transform:translateY(0)    scale(1);    }
+}
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(32px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity:0; transform:translateX(40px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes slideInLeft {
+  from { opacity:0; transform:translateX(-40px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes popIn {
+  from { opacity:0; transform:scale(0.85); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+/* Observer-based scroll animations */
+.anim-fade   { opacity:0; transform:translateY(28px); transition:opacity 0.6s ease, transform 0.6s ease; }
+.anim-left   { opacity:0; transform:translateX(-32px); transition:opacity 0.6s ease, transform 0.6s ease; }
+.anim-right  { opacity:0; transform:translateX(32px);  transition:opacity 0.6s ease, transform 0.6s ease; }
+.anim-pop    { opacity:0; transform:scale(0.9);        transition:opacity 0.5s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+.anim-visible { opacity:1 !important; transform:none !important; }
+
+/* Délais en cascade */
+.anim-d1 { transition-delay:0.05s; }
+.anim-d2 { transition-delay:0.12s; }
+.anim-d3 { transition-delay:0.19s; }
+.anim-d4 { transition-delay:0.26s; }
+
+/* Page entière fade in */
+body { animation: pageIn 0.5s ease both; }
+nav  { animation: pageIn 0.4s ease both; }
+
+/* ═══ MODAL PROFIL PHOTOGRAPHE ═══ */
+.profil-overlay {
+  display:none; position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,0.85); backdrop-filter:blur(12px);
+  align-items:center; justify-content:center; padding:16px;
+}
+.profil-overlay.open { display:flex; }
+.profil-modal {
+  background:var(--bg-card);
+  border:1px solid var(--border-hover);
+  border-radius:24px; width:100%; max-width:520px;
+  max-height:90vh; overflow-y:auto;
+  animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.profil-cover {
+  height:180px; border-radius:24px 24px 0 0;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; font-size:3rem;
+}
+.profil-avatar {
+  position:absolute; bottom:-28px; left:24px;
+  width:60px; height:60px; border-radius:50%;
+  background:var(--grad-sunset);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.4rem; font-weight:800; color:white;
+  border:3px solid var(--bg-card);
+  box-shadow:0 4px 16px rgba(0,100,255,0.35);
+}
+.profil-body { padding:44px 24px 24px; }
+.profil-name { font-family:var(--font-display); font-size:1.6rem; font-weight:700; }
+.profil-meta { display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; }
+.profil-tag {
+  font-size:0.75rem; font-weight:700; padding:4px 12px;
+  border-radius:20px; background:var(--accent-dim); color:var(--accent);
+  display:flex; align-items:center; gap:5px;
+}
+.profil-section { margin-top:20px; }
+.profil-section-titre {
+  font-size:0.72rem; font-weight:800; text-transform:uppercase;
+  letter-spacing:1.5px; color:var(--text-muted); margin-bottom:10px;
+  display:flex; align-items:center; gap:6px;
+}
+.profil-tel-box {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; background:var(--bg-secondary);
+  border:1px solid var(--border); border-radius:12px;
+}
+.profil-tel-num { font-size:1.1rem; font-weight:800; color:var(--accent); letter-spacing:1px; }
+.profil-btn-appel {
+  padding:8px 18px; border-radius:8px; border:none;
+  background:var(--grad-dawn); color:white;
+  font-family:var(--font-body); font-size:0.82rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+  box-shadow:0 4px 12px rgba(0,100,255,0.3);
+}
+.profil-btn-appel:hover { transform:translateY(-2px); }
+
+/* Portfolio grille */
+.portfolio-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:6px;
+  margin-top:8px;
+}
+.portfolio-item {
+  aspect-ratio:1; border-radius:8px; overflow:hidden;
+  background:var(--bg-card2); position:relative;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:transform 0.25s;
+}
+.portfolio-item:hover { transform:scale(1.03); }
+.portfolio-placeholder {
+  width:100%; height:100%; display:flex; align-items:center;
+  justify-content:center; font-size:1.5rem;
+  color:var(--text-muted);
+}
+.portfolio-add {
+  border:2px dashed var(--border-hover);
+  color:var(--accent); font-size:1.6rem; cursor:pointer;
+  transition:all 0.2s;
+}
+.portfolio-add:hover { background:var(--accent-dim); border-color:var(--accent); }
+
+/* ═══ MESSAGERIE / CHAT ═══ */
+.chat-overlay {
+  display:none; position:fixed; inset:0; z-index:350;
+  background:rgba(0,0,0,0.85); backdrop-filter:blur(12px);
+  align-items:flex-end; justify-content:center; padding:0;
+}
+.chat-overlay.open { display:flex; }
+.chat-modal {
+  background:var(--bg-card);
+  border-radius:24px 24px 0 0;
+  border:1px solid var(--border-hover); border-bottom:none;
+  width:100%; max-width:520px; height:80vh;
+  display:flex; flex-direction:column;
+  animation: slideInUp 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes slideInUp {
+  from { transform:translateY(100%); opacity:0; }
+  to   { transform:translateY(0);   opacity:1; }
+}
+.chat-header {
+  padding:16px 20px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px; flex-shrink:0;
+}
+.chat-avatar-sm {
+  width:40px; height:40px; border-radius:50%;
+  background:var(--grad-sunset);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:0.95rem; color:white; flex-shrink:0;
+}
+.chat-nom { font-weight:700; font-size:0.95rem; color:var(--text-primary); }
+.chat-statut { font-size:0.72rem; color:var(--text-muted); margin-top:1px; }
+.chat-close {
+  margin-left:auto; background:none; border:none;
+  color:var(--text-muted); font-size:1.2rem; cursor:pointer;
+  padding:4px 8px; border-radius:6px; transition:color 0.2s;
+}
+.chat-messages {
+  flex:1; overflow-y:auto; padding:16px 20px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.msg-wrap { display:flex; flex-direction:column; }
+.msg-wrap.moi { align-items:flex-end; }
+.msg-bulle {
+  max-width:75%; padding:10px 14px; border-radius:16px;
+  font-size:0.87rem; line-height:1.5; color:var(--text-primary);
+  background:var(--bg-secondary); border:1px solid var(--border);
+}
+.msg-wrap.moi .msg-bulle {
+  background:var(--grad-dawn); border:none; color:white;
+  border-radius:16px 16px 4px 16px;
+}
+.msg-wrap:not(.moi) .msg-bulle { border-radius:16px 16px 16px 4px; }
+.msg-heure {
+  font-size:0.65rem; color:var(--text-muted);
+  margin-top:3px; padding:0 4px;
+}
+.msg-systeme {
+  text-align:center; font-size:0.72rem; color:var(--text-muted);
+  padding:4px 12px; background:var(--bg-secondary);
+  border-radius:20px; align-self:center;
+}
+.chat-input-wrap {
+  padding:12px 16px; border-top:1px solid var(--border);
+  display:flex; gap:10px; align-items:center; flex-shrink:0;
+}
+.chat-input {
+  flex:1; padding:11px 16px; border-radius:24px;
+  background:var(--bg-secondary); border:1px solid var(--border);
+  color:var(--text-primary); font-family:var(--font-body);
+  font-size:0.88rem; outline:none; transition:border-color 0.2s;
+}
+.chat-input:focus { border-color:var(--accent); }
+.chat-send {
+  width:42px; height:42px; border-radius:50%; border:none;
+  background:var(--grad-dawn); color:white; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; transition:all 0.2s;
+  box-shadow:0 4px 12px rgba(0,100,255,0.35);
+}
+.chat-send:hover { transform:scale(1.1); }
+.chat-send svg { width:18px; height:18px; }
+
+/* Bouton messagerie flottant sur les cartes */
+.photog-btn-wrap { display:flex; gap:8px; margin-top:14px; }
+.photog-btn-msg {
+  flex:0 0 42px; height:42px; border-radius:10px; border:none;
+  background:var(--bg-secondary); border:1px solid var(--border-hover);
+  color:var(--accent); cursor:pointer; display:flex;
+  align-items:center; justify-content:center;
+  transition:all 0.25s; flex-shrink:0;
+}
+.photog-btn-msg:hover { background:var(--accent-dim); transform:translateY(-2px); }
+.photog-btn { flex:1; }
+
+/* Badge notification chat */
+.chat-badge {
+  position:absolute; top:-4px; right:-4px;
+  width:16px; height:16px; border-radius:50%;
+  background:var(--grad-cyan); color:#002A28;
+  font-size:0.6rem; font-weight:800;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ═══ BOUTON MESSAGERIE NAV ═══ */
+.nav-chat-btn {
+  position:relative; width:36px; height:36px;
+  border-radius:10px; border:1px solid var(--border);
+  background:transparent; color:var(--accent);
+  cursor:pointer; display:flex; align-items:center;
+  justify-content:center; transition:all 0.2s; flex-shrink:0;
+}
+.nav-chat-btn:hover { background:var(--accent-dim); border-color:var(--accent); }
+
+/* ═══ MODALE PROFIL UTILISATEUR (COMPTE) ═══ */
+.compte-section { padding:20px 24px; border-bottom:1px solid var(--border); }
+.compte-label {
+  font-size:0.7rem; font-weight:800; color:var(--text-muted);
+  text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;
+}
+.compte-input {
+  width:100%; padding:11px 14px; border-radius:10px;
+  background:var(--bg-input); border:1px solid var(--border);
+  color:var(--text-primary); font-family:var(--font-body);
+  font-size:0.88rem; outline:none; transition:border-color 0.2s;
+  margin-bottom:8px;
+}
+.compte-input:focus { border-color:var(--accent); }
+.compte-save {
+  padding:10px 22px; border-radius:10px; border:none;
+  background:var(--grad-dawn); color:white;
+  font-family:var(--font-body); font-size:0.85rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+}
+.compte-save:hover { transform:translateY(-1px); }
+
+/* How-icon SVG couleur */
+.how-icon svg { display:block; }
+
+
 /* ═══════════════════════════════════════════
    FOOTER
 ═══════════════════════════════════════════ */
@@ -1079,6 +1338,13 @@ footer {
     <li><a href="admin.html">Admin 🔒</a></li>
   </ul>
   <div style="display:flex;align-items:center;gap:12px">
+    <button class="nav-chat-btn" onclick="ouvrirListeChats()" title="Messagerie" style="display:none" id="nav-chat-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="chat-badge" id="nav-badge" style="display:none">1</span>
+    </button>
+    
     <!-- TOGGLE THÈME -->
     <button onclick="toggleTheme()" id="theme-btn"
       style="width:46px;height:26px;border-radius:13px;border:none;cursor:pointer;
@@ -1121,11 +1387,35 @@ footer {
 <!-- MOSAIQUE -->
 <div class="mosaic-section">
   <div class="mosaic">
-    <div class="mosaic-item"><div class="mosaic-photo m1">💒</div><div class="mosaic-overlay"><span class="mosaic-tag">Mariage</span></div></div>
-    <div class="mosaic-item"><div class="mosaic-photo m2">🎭</div><div class="mosaic-overlay"><span class="mosaic-tag">Portrait</span></div></div>
-    <div class="mosaic-item"><div class="mosaic-photo m3">✨</div><div class="mosaic-overlay"><span class="mosaic-tag">Mode</span></div></div>
-    <div class="mosaic-item"><div class="mosaic-photo m4">🌿</div><div class="mosaic-overlay"><span class="mosaic-tag">Nature</span></div></div>
-    <div class="mosaic-item"><div class="mosaic-photo m5">🎉</div><div class="mosaic-overlay"><span class="mosaic-tag">Événement</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m1"><svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <path d="M32 12 C32 12 20 20 20 32 C20 44 32 52 32 52 C32 52 44 44 44 32 C44 20 32 12 32 12Z" fill="url(#gm)" opacity="0.6"/>
+      <circle cx="32" cy="28" r="8" fill="url(#gm)"/>
+      <path d="M20 40 Q32 48 44 40" stroke="white" stroke-width="2" fill="none" opacity="0.8"/>
+      <defs><linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff" stop-opacity="0.9"/><stop offset="100%" stop-color="#00D4FF" stop-opacity="0.7"/></linearGradient></defs>
+    </svg></div><div class="mosaic-overlay"><span class="mosaic-tag">Mariage</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m2"><svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <circle cx="32" cy="22" r="10" fill="white" opacity="0.85"/>
+      <path d="M16 52 Q16 38 32 38 Q48 38 48 52" fill="white" opacity="0.7"/>
+      <circle cx="32" cy="22" r="6" fill="url(#gp)" opacity="0.5"/>
+      <defs><linearGradient id="gp" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div><div class="mosaic-overlay"><span class="mosaic-tag">Portrait</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m3"><svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <path d="M24 8 L32 18 L40 8 L44 52 L20 52 Z" fill="white" opacity="0.8"/>
+      <circle cx="32" cy="32" r="4" fill="url(#gmod)"/>
+      <line x1="32" y1="8" x2="32" y2="52" stroke="white" stroke-width="0.5" opacity="0.4"/>
+      <defs><linearGradient id="gmod" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#00D4CC"/><stop offset="100%" stop-color="#0066FF"/></linearGradient></defs>
+    </svg></div><div class="mosaic-overlay"><span class="mosaic-tag">Mode</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m4"><svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <path d="M32 10 Q44 20 44 36 Q44 50 32 54 Q20 50 20 36 Q20 20 32 10Z" fill="white" opacity="0.75"/>
+      <path d="M32 54 L32 32" stroke="white" stroke-width="2" opacity="0.6"/>
+      <circle cx="32" cy="28" r="8" fill="url(#gn)" opacity="0.4"/>
+      <defs><linearGradient id="gn" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#00C896"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div><div class="mosaic-overlay"><span class="mosaic-tag">Nature</span></div></div>
+    <div class="mosaic-item"><div class="mosaic-photo m5"><svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <polygon points="32,8 36,26 54,26 40,37 45,55 32,44 19,55 24,37 10,26 28,26" fill="white" opacity="0.85"/>
+      <circle cx="32" cy="32" r="6" fill="url(#ge)" opacity="0.5"/>
+      <defs><linearGradient id="ge" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFD700"/><stop offset="100%" stop-color="#FF8C00" stop-opacity="0.7"/></linearGradient></defs>
+    </svg></div><div class="mosaic-overlay"><span class="mosaic-tag">Événement</span></div></div>
   </div>
 </div>
 
@@ -1154,27 +1444,47 @@ footer {
   <div class="section-chip">🚀 Simple & rapide</div>
   <h2 class="section-title">Comment ça <span class="grad">marche</span> ?</h2>
   <div class="how-grid">
-    <div class="how-card">
+    <div class="how-card anim-fade anim-d1">
       <div class="how-num">01</div>
-      <div class="how-icon">🔍</div>
+      <div class="how-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <circle cx="14" cy="14" r="8" stroke="url(#gs)" stroke-width="2.5" fill="none"/>
+      <line x1="20" y1="20" x2="28" y2="28" stroke="url(#gs)" stroke-width="2.5" stroke-linecap="round"/>
+      <defs><linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div>
       <div class="how-title">Cherchez un photographe</div>
       <div class="how-desc">Parcourez les profils, comparez les portfolios et les tarifs selon votre budget.</div>
     </div>
-    <div class="how-card">
+    <div class="how-card anim-fade anim-d2">
       <div class="how-num">02</div>
-      <div class="how-icon">📱</div>
+      <div class="how-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect x="9" y="3" width="14" height="26" rx="3" stroke="url(#gph)" stroke-width="2.5" fill="none"/>
+      <circle cx="16" cy="26" r="1.5" fill="url(#gph)"/>
+      <line x1="12" y1="7" x2="20" y2="7" stroke="url(#gph)" stroke-width="1.5" stroke-linecap="round"/>
+      <defs><linearGradient id="gph" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div>
       <div class="how-title">Contactez-le directement</div>
       <div class="how-desc">Discutez de votre projet, fixez la date et le prix directement avec le photographe.</div>
     </div>
-    <div class="how-card">
+    <div class="how-card anim-fade anim-d3">
       <div class="how-num">03</div>
-      <div class="how-icon">💸</div>
+      <div class="how-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect x="3" y="8" width="26" height="18" rx="3" stroke="url(#gpay)" stroke-width="2.5" fill="none"/>
+      <line x1="3" y1="14" x2="29" y2="14" stroke="url(#gpay)" stroke-width="2.5"/>
+      <rect x="7" y="18" width="6" height="3" rx="1" fill="url(#gpay)" opacity="0.7"/>
+      <defs><linearGradient id="gpay" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div>
       <div class="how-title">Payez-le directement</div>
       <div class="how-desc">Réglez le photographe directement par MTN MoMo ou Airtel Money. FotoCongo ne prend aucune commission.</div>
     </div>
-    <div class="how-card">
+    <div class="how-card anim-fade anim-d4">
       <div class="how-num">04</div>
-      <div class="how-icon">📸</div>
+      <div class="how-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect x="3" y="9" width="26" height="18" rx="3" stroke="url(#gc)" stroke-width="2.5" fill="none"/>
+      <circle cx="16" cy="18" r="5" stroke="url(#gc)" stroke-width="2" fill="none"/>
+      <rect x="11" y="5" width="10" height="5" rx="2" stroke="url(#gc)" stroke-width="2" fill="none"/>
+      <circle cx="24" cy="13" r="1.5" fill="url(#gc)"/>
+      <defs><linearGradient id="gc" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div>
       <div class="how-title">Recevez vos photos</div>
       <div class="how-desc">Photos retouchées livrées sous 48-72h. Laissez un avis pour aider la communauté.</div>
     </div>
@@ -1287,11 +1597,21 @@ footer {
       <div class="price-amount">500 <span>FCFA</span></div>
       <div class="price-desc">Inscription unique — accès complet à vie</div>
       <ul class="price-features">
-        <li><span class="feat-y">✓</span> Parcourir tous les photographes</li>
-        <li><span class="feat-y">✓</span> Contacter les photographes</li>
-        <li><span class="feat-y">✓</span> Payer directement le photographe</li>
-        <li><span class="feat-y">✓</span> Laisser des avis</li>
-        <li><span class="feat-y">✓</span> Aucune commission prélevée</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Parcourir tous les photographes</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Contacter les photographes</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Payer directement le photographe</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Laisser des avis</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Aucune commission prélevée</li>
       </ul>
       <button class="price-cta price-cta-outline" onclick="openModal('signup')">S'inscrire — 500 FCFA</button>
     </div>
@@ -1307,12 +1627,24 @@ footer {
       <div class="price-amount">2 000 <span>FCFA/mois</span></div>
       <div class="price-desc">Inscription unique + abonnement mensuel pour rester visible</div>
       <ul class="price-features">
-        <li><span class="feat-y">✓</span> Profil public visible par tous</li>
-        <li><span class="feat-y">✓</span> Portfolio photos illimité</li>
-        <li><span class="feat-y">✓</span> Clients vous contactent directement</li>
-        <li><span class="feat-y">✓</span> <strong>0% de commission</strong> sur vos missions</li>
-        <li><span class="feat-y">✓</span> Badge "Photographe Vérifié" ✨</li>
-        <li><span class="feat-y">✓</span> Vous gardez 100% de vos revenus</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Profil public visible par tous</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Portfolio photos illimité</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Clients vous contactent directement</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> <strong>0% de commission</strong> sur vos missions</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Badge "Photographe Vérifié" ✨</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Vous gardez 100% de vos revenus</li>
       </ul>
       <button class="price-cta price-cta-grad" onclick="openModal('signup')">Rejoindre — 500 FCFA + 2 000/mois</button>
     </div>
@@ -1327,11 +1659,21 @@ footer {
       <div class="price-amount">8 000 <span>FCFA/mois</span></div>
       <div class="price-desc">Pour les studios avec plusieurs photographes</div>
       <ul class="price-features">
-        <li><span class="feat-y">✓</span> Jusqu'à 5 photographes</li>
-        <li><span class="feat-y">✓</span> Page studio dédiée</li>
-        <li><span class="feat-y">✓</span> Mise en avant prioritaire</li>
-        <li><span class="feat-y">✓</span> <strong>0% de commission</strong> sur les missions</li>
-        <li><span class="feat-y">✓</span> Support prioritaire</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Jusqu'à 5 photographes</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Page studio dédiée</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Mise en avant prioritaire</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> <strong>0% de commission</strong> sur les missions</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Support prioritaire</li>
       </ul>
       <button class="price-cta price-cta-outline" onclick="openModal('signup')">Contacter l'équipe</button>
     </div>
@@ -1447,10 +1789,10 @@ function toggleTheme() {
 // Gratuit le 1er mois, payant ensuite
 
 const spotlightPhotos = [
-  { nom:"Arsène Mavoungou", spec:"Mariage & Famille", ville:"Brazzaville", emoji:"💒", cover:"c-sunset",  avis:48, note:"5.0", depuis: 0  },
-  { nom:"Cynthia Nzaou",    spec:"Portrait & Mode",   ville:"Pointe-Noire",emoji:"🎭", cover:"c-ocean",   avis:32, note:"4.9", depuis: 0  },
-  { nom:"Patrick Moukoko",  spec:"Événements",        ville:"Brazzaville", emoji:"🎉", cover:"c-rose",    avis:61, note:"4.7", depuis: 25 },
-  { nom:"Gloria Kimpa",     spec:"Mariage & Cérémonie",ville:"Brazzaville",emoji:"✨", cover:"c-fire",    avis:43, note:"4.9", depuis: 15 },
+  { nom:"Arsène Mavoungou", spec:"Mariage & Famille", ville:"Brazzaville", emoji:"MARIAGE", cover:"c-sunset",  avis:48, note:"5.0", depuis: 0  },
+  { nom:"Cynthia Nzaou",    spec:"Portrait & Mode",   ville:"Pointe-Noire",emoji:"PORTRAIT", cover:"c-ocean",   avis:32, note:"4.9", depuis: 0  },
+  { nom:"Patrick Moukoko",  spec:"Événements",        ville:"Brazzaville", emoji:"EVENT", cover:"c-rose",    avis:61, note:"4.7", depuis: 25 },
+  { nom:"Gloria Kimpa",     spec:"Mariage & Cérémonie",ville:"Brazzaville",emoji:"MODE", cover:"c-fire",    avis:43, note:"4.9", depuis: 15 },
 ];
 let spotlightIndex = 0;
 let spotlightTimer = null;
@@ -1614,12 +1956,12 @@ function confirmerPaiement() {
 // ════════════════ CARTES PHOTO ════════════════
 function getDemodCards() {
   const demos = [
-    {nom:"Arsène Mavoungou", ville:"Brazzaville", spec:"Mariage & Famille", cover:"c-sunset", emoji:"💒", note:"5.0", avis:48, prix:"50 000", type:"PRO", init:"A"},
-    {nom:"Cynthia Nzaou",    ville:"Pointe-Noire", spec:"Portrait & Mode",  cover:"c-ocean",  emoji:"🎭", note:"4.9", avis:32, prix:"35 000", type:"PRO", init:"C"},
-    {nom:"Patrick Moukoko",  ville:"Brazzaville",  spec:"Événements",       cover:"c-rose",   emoji:"🎉", note:"4.7", avis:61, prix:"40 000", type:"PRO", init:"P"},
+    {nom:"Arsène Mavoungou", ville:"Brazzaville", spec:"Mariage & Famille", cover:"c-sunset", emoji:"MARIAGE", note:"5.0", avis:48, prix:"50 000", type:"PRO", init:"A"},
+    {nom:"Cynthia Nzaou",    ville:"Pointe-Noire", spec:"Portrait & Mode",  cover:"c-ocean",  emoji:"PORTRAIT", note:"4.9", avis:32, prix:"35 000", type:"PRO", init:"C"},
+    {nom:"Patrick Moukoko",  ville:"Brazzaville",  spec:"Événements",       cover:"c-rose",   emoji:"EVENT", note:"4.7", avis:61, prix:"40 000", type:"PRO", init:"P"},
     {nom:"Laeticia Bongo",   ville:"Brazzaville",  spec:"Corporate",        cover:"c-velvet", emoji:"🏢", note:"4.8", avis:19, prix:"45 000", type:"PRO", init:"L"},
     {nom:"Fiston Ngoma",     ville:"Pointe-Noire", spec:"Nature & Voyage",  cover:"c-emerald",emoji:"🌿", note:"4.6", avis:27, prix:"30 000", type:"AMATeur", init:"F"},
-    {nom:"Gloria Kimpa",     ville:"Brazzaville",  spec:"Mariage",          cover:"c-fire",   emoji:"✨", note:"4.9", avis:43, prix:"55 000", type:"PRO", init:"G"},
+    {nom:"Gloria Kimpa",     ville:"Brazzaville",  spec:"Mariage",          cover:"c-fire",   emoji:"MODE", note:"4.9", avis:43, prix:"55 000", type:"PRO", init:"G"},
   ];
   return demos.map(p => makeCard(null, p)).join('');
 }
@@ -1644,7 +1986,17 @@ function makeCard(id, p) {
         <div class="stars">★★★★★ <span>${p.note||'5.0'} (${p.avis||0} avis)</span></div>
         <div class="price">${p.prix||'—'} FCFA <small>/séance</small></div>
       </div>
-      <button class="photog-btn" onclick="contacterPhotographe('${id||''}','${p.nom}','${p.tel||'06 XXX XXX'}')">📱 Contacter ce photographe</button>
+      <div class="photog-btn-wrap">
+      <button class="photog-btn" onclick="ouvrirProfilPhotographe('${id||''}','${p.nom}','${p.ville}','${p.spec||p.specialite||'Photographe'}','${p.cover||'c-sunset'}','${p.tel||''}','${p.note||'5.0'}','${p.avis||0}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        Voir le profil
+      </button>
+      <button class="photog-btn-msg" onclick="ouvrirChat('${id||''}','${p.nom}','${(p.nom||'?')[0]}')" title="Envoyer un message">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </button>
+    </div>
     </div>
   </div>`;
 }
@@ -1700,6 +2052,306 @@ function showToast(msg) {
 
 // Charger les cartes au démarrage
 document.getElementById('photogs-grid').innerHTML = getDemodCards();
+
+// ════════════════ ANIMATIONS SCROLL ════════════════
+(function() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('anim-visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.anim-fade,.anim-left,.anim-right,.anim-pop')
+      .forEach(el => observer.observe(el));
+
+    // Ajouter animation aux cartes photographes quand chargées
+    const grid = document.getElementById('photogs-grid');
+    if (grid) {
+      const gridObserver = new MutationObserver(() => {
+        grid.querySelectorAll('.photog-card:not(.anim-fade)').forEach((card, i) => {
+          card.classList.add('anim-fade');
+          card.style.transitionDelay = (i * 0.06) + 's';
+          setTimeout(() => observer.observe(card), 10);
+        });
+      });
+      gridObserver.observe(grid, { childList: true });
+    }
+  });
+})();
+
+// ════════════════ PROFIL PHOTOGRAPHE ════════════════
+let profilCourant = null;
+
+const PORTFOLIO_PLACEHOLDERS = [
+  { bg:'c-sunset', svg:'<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="2" y="6" width="28" height="20" rx="3" fill="white" opacity="0.6"/><circle cx="16" cy="16" r="6" fill="white" opacity="0.9"/><circle cx="16" cy="16" r="3" fill="#0066FF" opacity="0.7"/></svg>' },
+  { bg:'c-ocean',  svg:'<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="12" r="6" fill="white" opacity="0.8"/><path d="M6 26 Q6 20 16 20 Q26 20 26 26" fill="white" opacity="0.7"/></svg>' },
+  { bg:'c-rose',   svg:'<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 4 Q24 10 24 18 Q24 26 16 28 Q8 26 8 18 Q8 10 16 4Z" fill="white" opacity="0.75"/></svg>' },
+  { bg:'c-emerald',svg:'<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="16,4 20,13 29,13 22,19 25,28 16,22 7,28 10,19 3,13 12,13" fill="white" opacity="0.8"/></svg>' },
+];
+
+function ouvrirProfilPhotographe(id, nom, ville, spec, cover, tel, note, avis) {
+  profilCourant = { id, nom, ville, spec, cover, tel, note, avis };
+
+  document.getElementById('profil-nom').textContent   = nom;
+  document.getElementById('profil-spec').textContent  = spec;
+  document.getElementById('profil-ville').textContent = ville;
+  document.getElementById('profil-note').textContent  = note;
+  document.getElementById('profil-avis').textContent  = avis;
+  document.getElementById('profil-avatar').textContent = (nom||'?')[0].toUpperCase();
+
+  // Cover couleur
+  const cover_ = document.getElementById('profil-cover');
+  cover_.className = 'profil-cover ' + (cover || 'c-sunset');
+
+  // Téléphone — visible seulement si connecté
+  const user = window._auth ? window._auth.currentUser : null;
+  const telEl = document.getElementById('profil-tel');
+  if (user && tel && tel.length > 4) {
+    telEl.textContent = tel;
+    document.getElementById('profil-btn-appel').style.display = 'flex';
+  } else if (!user) {
+    telEl.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">🔒 Connectez-vous pour voir</span>';
+    document.getElementById('profil-btn-appel').style.display = 'none';
+  } else {
+    telEl.textContent = 'Non renseigné';
+    document.getElementById('profil-btn-appel').style.display = 'none';
+  }
+
+  // Portfolio démo
+  const grid = document.getElementById('profil-portfolio');
+  grid.innerHTML = '';
+  PORTFOLIO_PLACEHOLDERS.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'portfolio-item ' + p.bg;
+    div.innerHTML = p.svg;
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.justifyContent = 'center';
+    grid.appendChild(div);
+  });
+
+  document.getElementById('profil-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function fermerProfil() {
+  document.getElementById('profil-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function appellerPhotographe() {
+  if (profilCourant && profilCourant.tel) {
+    window.location.href = 'tel:+242' + profilCourant.tel.replace(/\s/g,'');
+  }
+}
+
+function ouvrirChatDepuisProfil() {
+  if (!profilCourant) return;
+  fermerProfil();
+  setTimeout(() => ouvrirChat(profilCourant.id, profilCourant.nom, profilCourant.nom[0]), 300);
+}
+
+// ════════════════ MESSAGERIE / CHAT ════════════════
+let chatCourant = { id: null, nom: null, init: null };
+const chatMessages = {}; // { photographeId: [messages] }
+
+function ouvrirChat(photoId, nom, init) {
+  const user = window._auth ? window._auth.currentUser : null;
+  if (!user) { showToast("⚠️ Connectez-vous pour envoyer un message"); openModal('login'); return; }
+
+  chatCourant = { id: photoId, nom, init };
+  document.getElementById('chat-avatar-sm').textContent = init.toUpperCase();
+  document.getElementById('chat-nom-header').textContent = nom;
+
+  // Afficher les messages existants
+  const msgs = chatMessages[photoId] || [];
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = '<div class="msg-systeme">Début de la conversation</div>';
+
+  msgs.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'msg-wrap' + (m.moi ? ' moi' : '');
+    div.innerHTML = `<div class="msg-bulle">${m.texte}</div><div class="msg-heure">${m.heure}</div>`;
+    container.appendChild(div);
+  });
+
+  // Message d'accueil si 1ère fois
+  if (msgs.length === 0) {
+    const now = new Date();
+    const heure = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+    const msgAuto = {
+      texte: `Bonjour ! Je suis ${nom}, photographe sur FotoCongo. Comment puis-je vous aider ? 📸`,
+      moi: false, heure
+    };
+    if (!chatMessages[photoId]) chatMessages[photoId] = [];
+    chatMessages[photoId].push(msgAuto);
+    const div = document.createElement('div');
+    div.className = 'msg-wrap';
+    div.innerHTML = `<div class="msg-bulle">${msgAuto.texte}</div><div class="msg-heure">${heure}</div>`;
+    container.appendChild(div);
+  }
+
+  container.scrollTop = container.scrollHeight;
+  document.getElementById('chat-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('chat-input').focus(), 400);
+}
+
+function fermerChat() {
+  document.getElementById('chat-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function envoyerMessage() {
+  const input = document.getElementById('chat-input');
+  const texte = input.value.trim();
+  if (!texte) return;
+
+  const now   = new Date();
+  const heure = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  const msg   = { texte, moi: true, heure };
+
+  if (!chatMessages[chatCourant.id]) chatMessages[chatCourant.id] = [];
+  chatMessages[chatCourant.id].push(msg);
+
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg-wrap moi';
+  div.innerHTML = `<div class="msg-bulle">${texte}</div><div class="msg-heure">${heure}</div>`;
+  div.style.opacity = '0';
+  div.style.transform = 'translateY(8px)';
+  container.appendChild(div);
+  input.value = '';
+
+  requestAnimationFrame(() => {
+    div.style.transition = 'all 0.25s ease';
+    div.style.opacity = '1';
+    div.style.transform = 'none';
+  });
+  container.scrollTop = container.scrollHeight;
+
+  // Enregistrer dans Firebase
+  const user = window._auth ? window._auth.currentUser : null;
+  if (user && window._db) {
+    window.addDoc(window.collection(window._db, 'messages'), {
+      de: user.uid,
+      deEmail: user.email,
+      vers: chatCourant.id,
+      versNom: chatCourant.nom,
+      texte, heure,
+      createdAt: window.serverTimestamp()
+    }).catch(() => {});
+  }
+
+  // Réponse auto simulée
+  setTimeout(() => {
+    const repAuto = "Merci pour votre message ! Je vous réponds dès que possible. 📸";
+    const repMsg  = { texte: repAuto, moi: false, heure };
+    chatMessages[chatCourant.id].push(repMsg);
+    const div2 = document.createElement('div');
+    div2.className = 'msg-wrap';
+    div2.innerHTML = `<div class="msg-bulle">${repAuto}</div><div class="msg-heure">${heure}</div>`;
+    div2.style.opacity = '0';
+    container.appendChild(div2);
+    requestAnimationFrame(() => {
+      div2.style.transition = 'all 0.3s ease';
+      div2.style.opacity = '1';
+    });
+    container.scrollTop = container.scrollHeight;
+  }, 1500);
+}
+
+function ouvrirListeChats() {
+  showToast("💬 Messagerie — Cliquez sur un photographe pour discuter");
+}
+
+// ════════════════ MON COMPTE ════════════════
+function ouvrirCompte() {
+  const user = window._auth ? window._auth.currentUser : null;
+  if (!user) { openModal('login'); return; }
+
+  // Pré-remplir depuis localStorage
+  document.getElementById('compte-nom').value  = localStorage.getItem('fc-nom')   || '';
+  document.getElementById('compte-ville').value= localStorage.getItem('fc-ville') || '';
+  document.getElementById('compte-tel').value  = localStorage.getItem('fc-tel')   || '';
+
+  // Afficher portfolio si photographe
+  const role = localStorage.getItem('fc-role') || '';
+  document.getElementById('section-portfolio').style.display =
+    role === 'photographe' ? 'block' : 'none';
+
+  document.getElementById('compte-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function fermerCompte() {
+  document.getElementById('compte-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function sauvegarderCompte() {
+  const user = window._auth ? window._auth.currentUser : null;
+  if (!user) return;
+
+  const nom   = document.getElementById('compte-nom').value.trim();
+  const ville = document.getElementById('compte-ville').value.trim();
+  const tel   = document.getElementById('compte-tel').value.trim();
+
+  // Sauvegarder localement
+  if (nom)   localStorage.setItem('fc-nom', nom);
+  if (ville) localStorage.setItem('fc-ville', ville);
+  if (tel)   localStorage.setItem('fc-tel', tel);
+
+  // Sauvegarder dans Firestore
+  if (window._db) {
+    try {
+      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      // On utilise setDoc depuis window
+      await window.addDoc(window.collection(window._db, 'profils_publics'), {
+        userId: user.uid, nom, ville, tel,
+        updatedAt: window.serverTimestamp()
+      }).catch(() => {});
+    } catch(e) {}
+  }
+
+  showToast("✅ Profil mis à jour !");
+  fermerCompte();
+}
+
+function ajouterPhoto() {
+  showToast("📸 Ajout de photos — fonctionnalité bientôt disponible !");
+}
+
+// ════════════════ MISE À JOUR NAVBAR AVEC COMPTE ════════════════
+const _updateNavbarOriginal = window.updateNavbar;
+window.updateNavbar = (u) => {
+  const el = document.getElementById('nav-btns');
+  const chatBtn = document.getElementById('nav-chat-btn');
+  if (!el) return;
+  if (u) {
+    el.innerHTML = `
+      <button class="btn-ghost-sm" onclick="ouvrirCompte()" style="display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        ${u.email.split('@')[0]}
+      </button>
+      <button class="btn-ghost-sm" onclick="deconnecter()" style="display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Déconnexion
+      </button>`;
+    if (chatBtn) chatBtn.style.display = 'flex';
+    localStorage.setItem('fc-role', 'client');
+  } else {
+    el.innerHTML = `
+      <button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
+      <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>`;
+    if (chatBtn) chatBtn.style.display = 'none';
+  }
+};
+
 </script>
 <!-- CinetPay SDK -->
 <script src="https://cdn.cinetpay.com/seamless/main.js"></script>
