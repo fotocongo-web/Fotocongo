@@ -2506,35 +2506,7 @@ function showToast(msg) {
 // Charger les cartes au démarrage
 document.getElementById('photogs-grid').innerHTML = getDemodCards();
 
-// ════════════════ ANIMATIONS SCROLL ════════════════
-(function() {
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('anim-visible');
-        observer.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0.12 });
 
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.anim-fade,.anim-left,.anim-right,.anim-pop')
-      .forEach(el => observer.observe(el));
-
-    // Ajouter animation aux cartes photographes quand chargées
-    const grid = document.getElementById('photogs-grid');
-    if (grid) {
-      const gridObserver = new MutationObserver(() => {
-        grid.querySelectorAll('.photog-card:not(.anim-fade)').forEach((card, i) => {
-          card.classList.add('anim-fade');
-          card.style.transitionDelay = (i * 0.06) + 's';
-          setTimeout(() => observer.observe(card), 10);
-        });
-      });
-      gridObserver.observe(grid, { childList: true });
-    }
-  });
-})();
 
 // ════════════════ PROFIL PHOTOGRAPHE ════════════════
 let profilCourant = null;
