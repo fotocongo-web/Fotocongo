@@ -30,16 +30,26 @@
   const db = getFirestore(app);
 
   // ---- INSCRIPTION ----
-  window.inscrire = async (email, pwd, nom, ville, role) => {
+  window.inscrire = async (email, pwd, nom, ville, role, pseudo, tel) => {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, pwd);
-      await setDoc(doc(db, "utilisateurs", cred.user.uid), {
-        nom, ville, role, email,
+      const uid = cred.user.uid;
+      await setDoc(doc(db, "utilisateurs", uid), {
+        nom, pseudo: pseudo || nom, ville, role, email, tel: tel || '',
         abonnementActif: false,
         abonnementExpire: null,
         createdAt: serverTimestamp()
       });
-      showToast("🎉 Bienvenue sur FotoCongo, " + nom + " !");
+      // Sauvegarder localement
+      try {
+        localStorage.setItem('fc-nom', nom);
+        localStorage.setItem('fc-pseudo', pseudo || nom);
+        localStorage.setItem('fc-ville', ville);
+        localStorage.setItem('fc-tel', tel || '');
+        localStorage.setItem('fc-role', role);
+        localStorage.setItem('fc-email', email);
+      } catch(e) {}
+      showToast("🎉 Bienvenue sur FotoCongo, " + (pseudo || nom) + " !");
       closeModal();
       chargerPhotographes();
     } catch(e) {
@@ -55,7 +65,20 @@
   // ---- CONNEXION ----
   window.connecter = async (email, pwd) => {
     try {
-      await signInWithEmailAndPassword(auth, email, pwd);
+      const cred = await signInWithEmailAndPassword(auth, email, pwd);
+      // Charger le profil depuis Firestore
+      try {
+        const snap = await getDocs(query(collection(db, "utilisateurs"), where("email", "==", email)));
+        if (!snap.empty) {
+          const data = snap.docs[0].data();
+          localStorage.setItem('fc-nom', data.nom || '');
+          localStorage.setItem('fc-pseudo', data.pseudo || data.nom || '');
+          localStorage.setItem('fc-ville', data.ville || '');
+          localStorage.setItem('fc-tel', data.tel || '');
+          localStorage.setItem('fc-role', data.role || 'client');
+          localStorage.setItem('fc-email', email);
+        }
+      } catch(e) {}
       showToast("✅ Connecté !");
       closeModal();
     } catch(e) {
@@ -73,6 +96,9 @@
   onAuthStateChanged(auth, u => {
     updateNavbar(u);
     chargerPhotographes();
+    // Rendre la navbar visible une fois l'état connu (évite le flash)
+    const nb = document.getElementById('nav-btns');
+    if (nb) nb.style.visibility = 'visible';
   });
 
   // ---- CHARGER PHOTOGRAPHES ----
@@ -364,7 +390,7 @@ nav {
   overflow: hidden;
 }
 
-/* NOUVEAU HALO LUMINEUX ANIMÉ (balayage gauche-droite, blanc→orange→jaune→rose→violet→indigo) */
+/* HALO LUMINEUX ANIMÉ — couleurs harmonieuses bleu/cyan de l'app */
 .hero-glow {
   position: absolute;
   inset: 0;
@@ -372,23 +398,22 @@ nav {
   z-index: 0;
   background: linear-gradient(
     90deg,
-    rgba(255,255,255,0.8) 0%,
-    rgba(255,200,100,0.9) 15%,
-    rgba(255,220,50,0.9) 30%,
-    rgba(255,150,200,0.9) 45%,
-    rgba(200,100,255,0.9) 60%,
-    rgba(75,0,255,0.8) 75%,
-    rgba(255,255,255,0) 100%
+    rgba(0,102,255,0.0) 0%,
+    rgba(0,170,255,0.35) 20%,
+    rgba(0,212,204,0.45) 40%,
+    rgba(51,195,255,0.4) 60%,
+    rgba(0,102,255,0.3) 80%,
+    rgba(0,102,255,0.0) 100%
   );
   background-size: 200% 100%;
-  animation: sweepGlow 8s ease-in-out infinite;
-  mix-blend-mode: overlay;
-  opacity: 0.4;
+  animation: sweepGlow 10s ease-in-out infinite;
+  mix-blend-mode: screen;
+  opacity: 0.55;
 }
 @keyframes sweepGlow {
-  0% { background-position: 100% 0%; opacity: 0.3; }
-  50% { opacity: 0.7; }
-  100% { background-position: 0% 0%; opacity: 0.3; }
+  0%   { background-position: 120% 0%; opacity: 0.35; }
+  50%  { background-position: -20% 0%; opacity: 0.6; }
+  100% { background-position: 120% 0%; opacity: 0.35; }
 }
 
 /* Orbes de fond (conservés mais plus subtils) */
@@ -1311,6 +1336,21 @@ footer {
 @media(max-width: 1024px) { .mosaic { grid-template-columns: 2fr 1fr; grid-template-rows: auto; } .mosaic-item:nth-child(1){ grid-row:span 1; } }
 @media(max-width: 768px) { .nav-links { display:none; } .pay-wrap { grid-template-columns:1fr; } .pay-text-side { padding-left:0; } .footer-grid { grid-template-columns: 1fr 1fr; } .mosaic { grid-template-columns: 1fr 1fr; } }
 @media(max-width: 480px) { .footer-grid { grid-template-columns: 1fr; } .hero-stats { gap:28px; } .mosaic { grid-template-columns: 1fr; } }
+
+/* ═══ ANTI-FLASH AU CHARGEMENT ═══ */
+/* Empêche les modals/overlays d'apparaître brièvement au chargement */
+.modal-overlay,
+.profil-overlay,
+.chat-overlay,
+#legal-modal,
+#contact-modal {
+  visibility: visible; /* display:none est déjà géré */
+}
+/* S'assure que la navbar est rendue stable dès le départ */
+#nav-btns { min-height: 36px; }
+
+/* Scroll interne modal compte */
+.profil-modal { scrollbar-width: thin; scrollbar-color: var(--border-hover) transparent; }
 </style>
 </head>
 <body>
@@ -1365,7 +1405,7 @@ footer {
                box-shadow:0 2px 6px rgba(0,100,255,0.4);display:flex;align-items:center;
                justify-content:center;font-size:11px">🌙</span>
     </button>
-    <div id="nav-btns">
+    <div id="nav-btns" style="display:flex;align-items:center;gap:10px;visibility:hidden">
       <button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
       <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>
     </div>
@@ -2183,7 +2223,7 @@ footer {
   </div>
 </div>
 
-<!-- MODAL -->
+<!-- MODAL CONNEXION / INSCRIPTION -->
 <div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="closeModal()">✕</button>
@@ -2192,6 +2232,138 @@ footer {
       <button class="modal-tab" id="tab-signup" onclick="switchTab('signup')">Inscription</button>
     </div>
     <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- OVERLAY PROFIL PHOTOGRAPHE -->
+<div class="profil-overlay" id="profil-overlay" onclick="if(event.target===this)fermerProfil()">
+  <div class="profil-modal">
+    <div class="profil-cover c-sunset" id="profil-cover">
+      <div class="profil-avatar" id="profil-avatar">A</div>
+    </div>
+    <div class="profil-body">
+      <div class="profil-name" id="profil-nom">Photographe</div>
+      <div class="profil-meta">
+        <span class="profil-tag" id="profil-spec">Spécialité</span>
+        <span class="profil-tag">📍 <span id="profil-ville">Ville</span></span>
+        <span class="profil-tag">★ <span id="profil-note">5.0</span> (<span id="profil-avis">0</span> avis)</span>
+      </div>
+      <div class="profil-section">
+        <div class="profil-section-titre">📱 Contact</div>
+        <div class="profil-tel-box">
+          <span class="profil-tel-num" id="profil-tel">—</span>
+          <button class="profil-btn-appel" id="profil-btn-appel" style="display:none" onclick="appellerPhotographe()">📞 Appeler</button>
+        </div>
+      </div>
+      <div class="profil-section">
+        <div class="profil-section-titre">🖼️ Portfolio</div>
+        <div class="portfolio-grid" id="profil-portfolio"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button class="profil-btn-appel" style="flex:1;padding:12px" onclick="ouvrirChatDepuisProfil()">💬 Envoyer un message</button>
+        <button onclick="fermerProfil()" style="padding:12px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY MON COMPTE (PROFIL UTILISATEUR) -->
+<div class="profil-overlay" id="compte-overlay" onclick="if(event.target===this)fermerCompte()" style="z-index:320">
+  <div class="profil-modal" style="max-width:480px">
+    <!-- En-tête avec avatar -->
+    <div class="profil-cover c-lens" id="compte-cover" style="height:140px;flex-direction:column;gap:8px">
+      <div id="compte-avatar-display" style="width:70px;height:70px;border-radius:50%;background:var(--grad-dawn);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;color:white;border:3px solid rgba(255,255,255,0.3);overflow:hidden">
+        <span id="compte-initiale">?</span>
+      </div>
+      <label style="font-size:0.72rem;color:rgba(255,255,255,0.7);cursor:pointer;background:rgba(0,0,0,0.3);padding:4px 10px;border-radius:20px" for="compte-photo-input">📷 Changer la photo</label>
+      <input type="file" id="compte-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+    </div>
+    <div class="profil-body" style="padding-top:20px">
+      <div style="font-family:var(--font-display);font-size:1.4rem;font-weight:700;margin-bottom:4px">Mon profil</div>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:20px" id="compte-role-label">Client FotoCongo</div>
+
+      <!-- Infos de base -->
+      <div class="compte-section">
+        <div class="compte-label">Informations personnelles</div>
+        <input class="compte-input" id="compte-nom" placeholder="Nom complet" type="text"/>
+        <input class="compte-input" id="compte-pseudo" placeholder="Pseudo (affiché publiquement)" type="text"/>
+        <input class="compte-input" id="compte-tel" placeholder="Numéro de téléphone (ex: 06 979 59 01)" type="tel"/>
+        <select class="compte-input" id="compte-ville">
+          <option value="">Sélectionnez votre ville</option>
+          <option value="Brazzaville">Brazzaville</option>
+          <option value="Pointe-Noire">Pointe-Noire</option>
+          <option value="Dolisie">Dolisie</option>
+          <option value="Autre">Autre</option>
+        </select>
+      </div>
+
+      <!-- Messagerie -->
+      <div class="compte-section">
+        <div class="compte-label">Messagerie</div>
+        <input class="compte-input" id="compte-email-display" placeholder="Email" type="email" readonly style="opacity:0.6;cursor:not-allowed"/>
+        <input class="compte-input" id="compte-whatsapp" placeholder="Numéro WhatsApp (optionnel)" type="tel"/>
+      </div>
+
+      <!-- Section portfolio (photographes uniquement) -->
+      <div class="compte-section" id="section-portfolio" style="display:none">
+        <div class="compte-label">Portfolio (photographes)</div>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px">Ajoutez vos meilleures photos pour attirer des clients</div>
+        <div class="portfolio-grid" id="portfolio-preview" style="margin-bottom:10px">
+          <div class="portfolio-item portfolio-add" onclick="ajouterPhoto()">+</div>
+        </div>
+        <input type="file" id="portfolio-file-input" accept="image/*" multiple style="display:none" onchange="ajouterPhotosPortfolio(this)">
+        <button onclick="document.getElementById('portfolio-file-input').click()" style="width:100%;padding:10px;border-radius:10px;border:1px dashed var(--border-hover);background:var(--accent-dim);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">📸 Ajouter des photos</button>
+      </div>
+
+      <!-- Spécialité (photographes uniquement) -->
+      <div class="compte-section" id="section-specialite" style="display:none">
+        <div class="compte-label">Spécialité principale</div>
+        <select class="compte-input" id="compte-specialite">
+          <option value="">Choisissez votre spécialité</option>
+          <option value="Mariage & Famille">Mariage & Famille</option>
+          <option value="Portrait">Portrait</option>
+          <option value="Mode">Mode</option>
+          <option value="Événements">Événements</option>
+          <option value="Corporate">Corporate</option>
+          <option value="Nature & Voyage">Nature & Voyage</option>
+          <option value="Autre">Autre</option>
+        </select>
+        <input class="compte-input" id="compte-prix" placeholder="Tarif moyen (FCFA/séance)" type="number"/>
+      </div>
+
+      <!-- Changer mot de passe -->
+      <div class="compte-section">
+        <div class="compte-label">Changer le mot de passe</div>
+        <input class="compte-input" id="compte-pwd-new" placeholder="Nouveau mot de passe (laisser vide = inchangé)" type="password"/>
+      </div>
+
+      <!-- Boutons -->
+      <div style="padding:16px 0;display:flex;gap:10px">
+        <button class="compte-save" style="flex:1;padding:13px" onclick="sauvegarderCompte()">✅ Sauvegarder</button>
+        <button onclick="fermerCompte()" style="padding:13px 18px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY CHAT / MESSAGERIE -->
+<div class="chat-overlay" id="chat-overlay">
+  <div class="chat-modal">
+    <div class="chat-header">
+      <div class="chat-avatar-sm" id="chat-avatar-sm">?</div>
+      <div>
+        <div class="chat-nom" id="chat-nom-header">Photographe</div>
+        <div class="chat-statut">En ligne · FotoCongo</div>
+      </div>
+      <button class="chat-close" onclick="fermerChat()">✕</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-wrap">
+      <input class="chat-input" id="chat-input" placeholder="Écrivez votre message..." onkeydown="if(event.key==='Enter')envoyerMessage()"/>
+      <button class="chat-send" onclick="envoyerMessage()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -2396,31 +2568,65 @@ function switchTab(type) {
     body.innerHTML = `
       <div class="modal-title">Bon retour ! 👋</div>
       <div class="modal-sub">Connectez-vous à votre compte FotoCongo</div>
-      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="l-email" type="email" placeholder="votre@email.com"/></div>
-      <div class="form-group"><label class="form-label">Mot de passe</label><input class="form-input" id="l-pwd" type="password" placeholder="••••••••"/></div>
-      <button class="submit-btn" onclick="connecter(document.getElementById('l-email').value,document.getElementById('l-pwd').value)">Se connecter</button>`;
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="l-email" type="email" placeholder="votre@email.com" autocomplete="email"/></div>
+      <div class="form-group"><label class="form-label">Mot de passe</label>
+        <div style="position:relative">
+          <input class="form-input" id="l-pwd" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px"/>
+          <button type="button" onclick="togglePwd('l-pwd',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem">👁</button>
+        </div>
+      </div>
+      <button class="submit-btn" onclick="connecter(document.getElementById('l-email').value,document.getElementById('l-pwd').value)">Se connecter</button>
+      <div style="text-align:center;margin-top:14px;font-size:0.82rem;color:var(--text-muted)">Pas encore de compte ? <a href="#" onclick="switchTab('signup');return false" style="color:var(--accent);font-weight:600">S'inscrire gratuitement</a></div>`;
   } else {
     body.innerHTML = `
-      <div class="modal-title">Rejoignez FotoCongo gratuitement 🎉</div>
-      <div class="modal-sub">Créez votre compte en 1 minute</div>
+      <div class="modal-title">Rejoindre FotoCongo 🎉</div>
+      <div class="modal-sub">Inscription gratuite — 1 minute</div>
       <div class="form-group"><label class="form-label">Vous êtes...</label>
         <div class="role-grid">
           <button class="role-btn active" onclick="setRole(this,'photographe')"><span class="role-icon">📸</span>Photographe</button>
           <button class="role-btn" onclick="setRole(this,'client')"><span class="role-icon">👤</span>Client</button>
           <button class="role-btn" onclick="setRole(this,'entreprise')"><span class="role-icon">🏢</span>Entreprise</button>
-          <button class="role-btn" onclick="setRole(this,'amateur')"><span class="role-icon">🌟</span>Photo amateur</button>
+          <button class="role-btn" onclick="setRole(this,'amateur')"><span class="role-icon">🌟</span>Amateur</button>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Nom complet</label><input class="form-input" id="r-nom" placeholder="Jean-Paul Moukoko"/></div>
-      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="r-email" type="email" placeholder="votre@email.com"/></div>
+      <div class="form-group"><label class="form-label">Nom complet</label><input class="form-input" id="r-nom" placeholder="Jean-Paul Moukoko" autocomplete="name"/></div>
+      <div class="form-group"><label class="form-label">Pseudo (affiché publiquement)</label><input class="form-input" id="r-pseudo" placeholder="@jean_photo"/></div>
+      <div class="form-group"><label class="form-label">Téléphone / WhatsApp</label><input class="form-input" id="r-tel" type="tel" placeholder="06 979 59 01"/></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="r-email" type="email" placeholder="votre@email.com" autocomplete="email"/></div>
       <div class="form-group"><label class="form-label">Ville</label>
-        <select class="form-select" id="r-ville"><option>Brazzaville</option><option>Pointe-Noire</option><option>Dolisie</option><option>Autre</option></select>
+        <select class="form-select" id="r-ville"><option value="Brazzaville">Brazzaville</option><option value="Pointe-Noire">Pointe-Noire</option><option value="Dolisie">Dolisie</option><option value="Autre">Autre</option></select>
       </div>
-      <div class="form-group"><label class="form-label">Mot de passe</label><input class="form-input" id="r-pwd" type="password" placeholder="••••••••"/></div>
-      <button class="submit-btn" onclick="inscrire(document.getElementById('r-email').value,document.getElementById('r-pwd').value,document.getElementById('r-nom').value,document.getElementById('r-ville').value,selectedRole)">Créer mon compte gratuit</button>`;
+      <div class="form-group"><label class="form-label">Mot de passe</label>
+        <div style="position:relative">
+          <input class="form-input" id="r-pwd" type="password" placeholder="••••••••" autocomplete="new-password" style="padding-right:44px"/>
+          <button type="button" onclick="togglePwd('r-pwd',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem">👁</button>
+        </div>
+      </div>
+      <button class="submit-btn" onclick="inscrireAvecProfil()">Créer mon compte gratuit →</button>
+      <div style="text-align:center;margin-top:14px;font-size:0.82rem;color:var(--text-muted)">Déjà inscrit ? <a href="#" onclick="switchTab('login');return false" style="color:var(--accent);font-weight:600">Se connecter</a></div>`;
   }
 }
 function setRole(el, role) { document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); selectedRole=role; }
+
+// Afficher/masquer mot de passe
+function togglePwd(id, btn) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+// Inscription avec tous les champs profil
+function inscrireAvecProfil() {
+  const email  = document.getElementById('r-email').value.trim();
+  const pwd    = document.getElementById('r-pwd').value;
+  const nom    = document.getElementById('r-nom').value.trim();
+  const pseudo = document.getElementById('r-pseudo') ? document.getElementById('r-pseudo').value.trim() : '';
+  const tel    = document.getElementById('r-tel') ? document.getElementById('r-tel').value.trim() : '';
+  const ville  = document.getElementById('r-ville').value;
+  if (!email || !pwd || !nom) { showToast('⚠️ Remplissez au moins nom, email et mot de passe'); return; }
+  inscrire(email, pwd, nom, ville, selectedRole, pseudo, tel);
+}
 
 function filterTab(el) { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
 function selectMM(el) { document.querySelectorAll('.mm-option').forEach(m=>m.classList.remove('active')); el.classList.add('active'); }
@@ -2656,15 +2862,29 @@ function ouvrirCompte() {
   const user = window._auth ? window._auth.currentUser : null;
   if (!user) { openModal('login'); return; }
 
-  // Pré-remplir depuis localStorage
-  document.getElementById('compte-nom').value  = localStorage.getItem('fc-nom')   || '';
-  document.getElementById('compte-ville').value= localStorage.getItem('fc-ville') || '';
-  document.getElementById('compte-tel').value  = localStorage.getItem('fc-tel')   || '';
+  try {
+    document.getElementById('compte-nom').value       = localStorage.getItem('fc-nom')     || '';
+    document.getElementById('compte-pseudo').value    = localStorage.getItem('fc-pseudo')   || '';
+    document.getElementById('compte-ville').value     = localStorage.getItem('fc-ville')    || '';
+    document.getElementById('compte-tel').value       = localStorage.getItem('fc-tel')      || '';
+    document.getElementById('compte-whatsapp').value  = localStorage.getItem('fc-whatsapp') || '';
+    document.getElementById('compte-email-display').value = user.email || '';
+    const initiale = (localStorage.getItem('fc-pseudo') || localStorage.getItem('fc-nom') || user.email || '?')[0].toUpperCase();
+    document.getElementById('compte-initiale').textContent = initiale;
+  } catch(e) {}
 
-  // Afficher portfolio si photographe
-  const role = localStorage.getItem('fc-role') || '';
-  document.getElementById('section-portfolio').style.display =
-    role === 'photographe' ? 'block' : 'none';
+  const role = localStorage.getItem('fc-role') || 'client';
+  const isPhotographe = role === 'photographe' || role === 'amateur';
+  document.getElementById('section-portfolio').style.display  = isPhotographe ? 'block' : 'none';
+  document.getElementById('section-specialite').style.display = isPhotographe ? 'block' : 'none';
+  if (isPhotographe) {
+    try {
+      document.getElementById('compte-specialite').value = localStorage.getItem('fc-specialite') || '';
+      document.getElementById('compte-prix').value       = localStorage.getItem('fc-prix')        || '';
+    } catch(e) {}
+  }
+  const roleLabels = { photographe:'Photographe FotoCongo', client:'Client FotoCongo', entreprise:'Entreprise FotoCongo', amateur:'Photo amateur FotoCongo' };
+  document.getElementById('compte-role-label').textContent = roleLabels[role] || 'FotoCongo';
 
   document.getElementById('compte-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -2679,33 +2899,84 @@ async function sauvegarderCompte() {
   const user = window._auth ? window._auth.currentUser : null;
   if (!user) return;
 
-  const nom   = document.getElementById('compte-nom').value.trim();
-  const ville = document.getElementById('compte-ville').value.trim();
-  const tel   = document.getElementById('compte-tel').value.trim();
+  const nom       = document.getElementById('compte-nom').value.trim();
+  const pseudo    = document.getElementById('compte-pseudo').value.trim();
+  const ville     = document.getElementById('compte-ville').value;
+  const tel       = document.getElementById('compte-tel').value.trim();
+  const whatsapp  = document.getElementById('compte-whatsapp').value.trim();
+  const specialite = document.getElementById('compte-specialite') ? document.getElementById('compte-specialite').value : '';
+  const prix       = document.getElementById('compte-prix')       ? document.getElementById('compte-prix').value.trim() : '';
+  const pwdNew     = document.getElementById('compte-pwd-new')    ? document.getElementById('compte-pwd-new').value : '';
 
-  // Sauvegarder localement (avec protection si localStorage indisponible)
+  // Sauvegarder localement
   try {
-    if (nom)   localStorage.setItem('fc-nom', nom);
-    if (ville) localStorage.setItem('fc-ville', ville);
-    if (tel)   localStorage.setItem('fc-tel', tel);
+    if (nom)       localStorage.setItem('fc-nom', nom);
+    if (pseudo)    localStorage.setItem('fc-pseudo', pseudo);
+    if (ville)     localStorage.setItem('fc-ville', ville);
+    if (tel)       localStorage.setItem('fc-tel', tel);
+    if (whatsapp)  localStorage.setItem('fc-whatsapp', whatsapp);
+    if (specialite)localStorage.setItem('fc-specialite', specialite);
+    if (prix)      localStorage.setItem('fc-prix', prix);
+    // Mettre à jour l'initiale
+    const initiale = (pseudo || nom || '?')[0].toUpperCase();
+    document.getElementById('compte-initiale').textContent = initiale;
   } catch(e) {}
 
-  // Sauvegarder dans Firestore avec setDoc (mise à jour du document existant)
+  // Sauvegarder dans Firestore
   if (window._db && window.setDoc && window.doc) {
     try {
-      await window.setDoc(window.doc(window._db, 'profils_publics', user.uid), {
-        userId: user.uid, nom, ville, tel,
-        updatedAt: window.serverTimestamp()
-      }, { merge: true });
+      const data = { userId: user.uid, nom, pseudo, ville, tel, whatsapp, updatedAt: window.serverTimestamp() };
+      if (specialite) data.specialite = specialite;
+      if (prix)       data.prix = prix;
+      await window.setDoc(window.doc(window._db, 'utilisateurs', user.uid), data, { merge: true });
     } catch(e) {}
   }
 
-  showToast("✅ Profil mis à jour !");
+  // Changer mot de passe si renseigné
+  if (pwdNew && pwdNew.length >= 6 && window._auth && window._auth.currentUser) {
+    try {
+      const { updatePassword } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+      await updatePassword(window._auth.currentUser, pwdNew);
+      showToast("✅ Profil et mot de passe mis à jour !");
+    } catch(e) {
+      showToast("✅ Profil mis à jour ! (Reconnectez-vous pour changer le mot de passe)");
+    }
+  } else {
+    showToast("✅ Profil mis à jour !");
+  }
   fermerCompte();
 }
 
+// Preview photo de profil
+function previewPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const avatarDiv = document.getElementById('compte-avatar-display');
+    avatarDiv.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;
+    try { localStorage.setItem('fc-avatar', e.target.result); } catch(err) {}
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// Ajouter photos portfolio
+function ajouterPhotosPortfolio(input) {
+  if (!input.files) return;
+  const grid = document.getElementById('portfolio-preview');
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const div = document.createElement('div');
+      div.className = 'portfolio-item';
+      div.style.background = `url(${e.target.result}) center/cover`;
+      grid.insertBefore(div, grid.querySelector('.portfolio-add'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function ajouterPhoto() {
-  showToast("📸 Ajout de photos — fonctionnalité bientôt disponible !");
+  document.getElementById('portfolio-file-input').click();
 }
 
 // ════════════════ MISE À JOUR NAVBAR AVEC COMPTE ════════════════
@@ -2714,17 +2985,17 @@ window.updateNavbar = (u) => {
   const chatBtn = document.getElementById('nav-chat-btn');
   if (!el) return;
   if (u) {
+    const pseudo = (() => { try { return localStorage.getItem('fc-pseudo') || localStorage.getItem('fc-nom') || u.email.split('@')[0]; } catch(e) { return u.email.split('@')[0]; } })();
     el.innerHTML = `
       <button class="btn-ghost-sm" onclick="ouvrirCompte()" style="display:flex;align-items:center;gap:6px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
-        ${u.email.split('@')[0]}
+        ${pseudo}
       </button>
       <button class="btn-ghost-sm" onclick="deconnecter()" style="display:flex;align-items:center;gap:6px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Déconnexion
       </button>`;
     if (chatBtn) chatBtn.style.display = 'flex';
-    try { localStorage.setItem('fc-role', 'client'); } catch(e) {}
   } else {
     el.innerHTML = `
       <button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
