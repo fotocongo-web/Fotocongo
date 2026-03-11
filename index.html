@@ -1,0 +1,2740 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FotoCongo – Trouvez votre photographe</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- FIREBASE SDK - VERSION CORRIGÉE -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, setDoc, query, where, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ✅ CONFIG FIREBASE FOTOCONGO
+  const firebaseConfig = {
+    apiKey: "AIzaSyDLg5WiF2GuWGwoHeFdFEsoX5CKaIwtcLA",
+    authDomain: "fotocongo-29b79.firebaseapp.com",
+    projectId: "fotocongo-29b79",
+    storageBucket: "fotocongo-29b79.firebasestorage.app",
+    messagingSenderId: "388529080436",
+    appId: "1:388529080436:web:53a5bb9d64358e5a4fa921",
+    measurementId: "G-M8F4CX1M6G"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // ---- INSCRIPTION ----
+  window.inscrire = async (email, pwd, nom, ville, role) => {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+      await setDoc(doc(db, "utilisateurs", cred.user.uid), {
+        nom, ville, role, email,
+        abonnementActif: false,
+        abonnementExpire: null,
+        createdAt: serverTimestamp()
+      });
+      showToast("🎉 Bienvenue sur FotoCongo, " + nom + " !");
+      closeModal();
+      chargerPhotographes();
+    } catch(e) {
+      const msgs = {
+        'auth/email-already-in-use': '❌ Cet email est déjà utilisé',
+        'auth/weak-password': '❌ Mot de passe trop court (6 caractères min)',
+        'auth/invalid-email': '❌ Email invalide'
+      };
+      showToast(msgs[e.code] || '❌ Erreur : ' + e.message);
+    }
+  };
+
+  // ---- CONNEXION ----
+  window.connecter = async (email, pwd) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, pwd);
+      showToast("✅ Connecté !");
+      closeModal();
+    } catch(e) {
+      showToast("❌ Email ou mot de passe incorrect");
+    }
+  };
+
+  // ---- DÉCONNEXION ----
+  window.deconnecter = async () => {
+    await signOut(auth);
+    showToast("👋 À bientôt !");
+  };
+
+  // ---- ÉTAT CONNEXION ----
+  onAuthStateChanged(auth, u => {
+    updateNavbar(u);
+    chargerPhotographes();
+  });
+
+  // ---- CHARGER PHOTOGRAPHES ----
+  window.chargerPhotographes = async () => {
+    const grid = document.getElementById('photogs-grid');
+    if (!grid) return;
+    try {
+      const snap = await getDocs(query(collection(db, "utilisateurs"), where("role", "==", "photographe")));
+      if (snap.empty) { grid.innerHTML = getDemodCards(); return; }
+      let html = '';
+      snap.forEach(d => html += makeCard(d.id, d.data()));
+      grid.innerHTML = html;
+    } catch { grid.innerHTML = getDemodCards(); }
+  };
+
+  // ---- NAVBAR ----
+  window.updateNavbar = u => {
+    const el = document.getElementById('nav-btns');
+    if (!el) return;
+    el.innerHTML = u
+      ? `<span class="nav-user">👤 ${u.email.split('@')[0]}</span>
+         <button class="btn-ghost-sm" onclick="deconnecter()">Déconnexion</button>`
+      : `<button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
+         <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>`;
+  };
+
+  window._auth = auth;
+  window._db = db;
+  window.serverTimestamp = serverTimestamp;
+  window.addDoc = addDoc;
+  window.collection = collection;
+  window.setDoc = setDoc;
+  window.doc = doc;
+
+  // ✅ Exposer contacterPhotographe globalement
+  window.contacterPhotographe = async (photoId, nomPhoto, telPhoto) => {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast("⚠️ Connectez-vous pour contacter ce photographe");
+      openModal('login');
+      return;
+    }
+    await addDoc(collection(db, "mises_en_relation"), {
+      clientId: user.uid,
+      clientEmail: user.email,
+      photographeId: photoId,
+      photographeNom: nomPhoto,
+      statut: 'initié',
+      createdAt: serverTimestamp()
+    }).catch(() => {});
+    document.getElementById('contact-modal-name').textContent = nomPhoto;
+    document.getElementById('contact-modal-tel').textContent = telPhoto || 'Numéro visible après confirmation';
+    document.getElementById('contact-modal').style.display = 'flex';
+    showToast(`📱 Contact de ${nomPhoto} ouvert !`);
+  };
+
+  // ✅ Exposer demanderAbonnement globalement (avec instructions de paiement)
+  window.demanderAbonnement = async () => {
+    const user = auth.currentUser;
+    if (!user) { showToast("⚠️ Connectez-vous d'abord"); openModal('login'); return; }
+    await addDoc(collection(db, "demandes_abonnement"), {
+      userId: user.uid,
+      email: user.email,
+      montant: 2000,
+      statut: 'en_attente',
+      createdAt: serverTimestamp()
+    }).catch(() => {});
+    showToast("✅ Demande envoyée ! Envoyez 2 000 FCFA au +242 XX XXX XXX (MTN FotoCongo Services) puis attendez l'activation.");
+    const instrEl = document.getElementById('paiement-instructions');
+    if (instrEl) instrEl.style.display = 'block';
+  };
+</script>
+
+<style>
+/* ═══════════════════════════════════════════
+   VARIABLES DE THÈMES
+═══════════════════════════════════════════ */
+:root {
+  /* Dégradés photographiques — Bleu, Bleu Ciel & Cyan Turquoise */
+  --grad-sunset:  linear-gradient(135deg, #0066FF 0%, #00AAFF 55%, #00D4FF 100%);
+  --grad-golden:  linear-gradient(135deg, #0052CC 0%, #0099FF 55%, #33C3FF 100%);
+  --grad-lens:    linear-gradient(135deg, #1A3A8F 0%, #0066FF 55%, #00C3FF 100%);
+  --grad-dawn:    linear-gradient(135deg, #0044CC 0%, #0099FF 55%, #00D4FF 100%);
+  --grad-velvet:  linear-gradient(135deg, #003399 0%, #0066FF 100%);
+  --grad-emerald: linear-gradient(135deg, #0077CC 0%, #00C3FF 100%);
+  --grad-fire:    linear-gradient(135deg, #001F80 0%, #0066FF 100%);
+  --grad-ocean:   linear-gradient(135deg, #0055BB 0%, #00AAFF 100%);
+  /* 🆕 3e couleur : Cyan Turquoise — ambiance photo studio */
+  --grad-cyan:    linear-gradient(135deg, #00C9C9 0%, #00E5CC 50%, #00FFD0 100%);
+  --cyan:         #00D4CC;
+  --cyan-dim:     rgba(0,212,204,0.12);
+  --cyan-light:   #E0FFFC;
+
+  /* Polices */
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body:    'Plus Jakarta Sans', sans-serif;
+
+  /* Animations */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* THÈME SOMBRE */
+[data-theme="dark"] {
+  --bg-primary:   #050D1C;
+  --bg-secondary: #091525;
+  --bg-card:      #0D1D35;
+  --bg-card2:     #112244;
+  --bg-input:     #112244;
+  --border:       rgba(255,255,255,0.06);
+  --border-hover: rgba(0,153,255,0.4);
+  --text-primary: #EFF6FF;
+  --text-secondary: #93B8D8;
+  --text-muted:   #5A7A96;
+  --accent:       #00AAFF;
+  --accent2:      #33C3FF;
+  --accent-dim:   rgba(0,170,255,0.12);
+  --shadow:       0 20px 60px rgba(0,0,0,0.5);
+  --shadow-card:  0 8px 32px rgba(0,0,0,0.4);
+  --nav-bg:       rgba(8,12,24,0.93);
+  --toggle-bg:    #0D1A2E;
+  --toggle-knob:  #060D1A;
+}
+
+/* THÈME CLAIR */
+[data-theme="light"] {
+  --bg-primary:   #F0F7FF;
+  --bg-secondary: #E3F0FF;
+  --bg-card:      #FFFFFF;
+  --bg-card2:     #EAF4FF;
+  --bg-input:     #E3F0FF;
+  --border:       rgba(0,0,0,0.07);
+  --border-hover: rgba(0,100,220,0.4);
+  --text-primary: #040E24;
+  --text-secondary: #2A4A7A;
+  --text-muted:   #607B99;
+  --accent:       #0066FF;
+  --accent2:      #00AAFF;
+  --accent-dim:   rgba(0,102,255,0.1);
+  --shadow:       0 20px 60px rgba(0,60,180,0.12);
+  --shadow-card:  0 4px 24px rgba(0,60,180,0.08);
+  --nav-bg:       rgba(240,247,255,0.96);
+  --toggle-bg:    #C8E0FF;
+  --toggle-knob:  #FFFFFF;
+}
+
+/* ═══════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════ */
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+html, html * {
+  transition: background-color 0.35s ease, color 0.35s ease,
+              border-color 0.35s ease, box-shadow 0.35s ease !important;
+}
+body {
+  font-family: var(--font-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════ */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 5%;
+  background: var(--nav-bg);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  transition: all 0.4s var(--ease-smooth);
+}
+
+.nav-logo {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  background: var(--grad-sunset);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+  cursor: pointer;
+}
+
+.nav-links {
+  display: flex; gap: 28px; list-style: none;
+}
+.nav-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: color 0.2s;
+  position: relative;
+}
+.nav-links a::after {
+  content: '';
+  position: absolute; bottom: -4px; left: 0; right: 0; height: 2px;
+  background: var(--grad-golden);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transition: transform 0.25s var(--ease-spring);
+}
+.nav-links a:hover { color: var(--accent); }
+.nav-links a:hover::after { transform: scaleX(1); }
+
+#nav-btns { display: flex; align-items: center; gap: 10px; }
+
+/* TOGGLE THÈME */
+.theme-toggle {
+  width: 52px; height: 28px;
+  background: var(--toggle-bg);
+  border-radius: 14px; border: none; cursor: pointer;
+  position: relative;
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+.theme-toggle::before {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--grad-sunset);
+  transition: transform 0.35s var(--ease-spring), background 0.3s;
+  box-shadow: 0 2px 8px rgba(255,100,30,0.4);
+}
+[data-theme="light"] .theme-toggle::before {
+  transform: translateX(24px);
+  background: var(--grad-golden);
+}
+.theme-toggle-wrap {
+  display: flex; align-items: center; gap: 8px;
+}
+.theme-icon {
+  font-size: 0.9rem;
+  transition: opacity 0.3s;
+}
+
+.btn-ghost-sm {
+  padding: 8px 18px;
+  border: 1px solid var(--border-hover);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-ghost-sm:hover { background: var(--accent-dim); }
+
+.btn-cta-sm {
+  padding: 8px 18px;
+  border: none; border-radius: 8px;
+  background: var(--grad-dawn);
+  color: white;
+  font-family: var(--font-body);
+  font-size: 0.83rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+  box-shadow: 0 4px 14px rgba(0,100,255,0.35);
+}
+.btn-cta-sm:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,100,255,0.5); }
+
+.nav-user {
+  font-size: 0.83rem; font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 6px 14px; border-radius: 20px;
+}
+
+/* ═══════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════ */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 130px 5% 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* NOUVEAU HALO LUMINEUX ANIMÉ (balayage gauche-droite, blanc→orange→jaune→rose→violet→indigo) */
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.8) 0%,
+    rgba(255,200,100,0.9) 15%,
+    rgba(255,220,50,0.9) 30%,
+    rgba(255,150,200,0.9) 45%,
+    rgba(200,100,255,0.9) 60%,
+    rgba(75,0,255,0.8) 75%,
+    rgba(255,255,255,0) 100%
+  );
+  background-size: 200% 100%;
+  animation: sweepGlow 8s ease-in-out infinite;
+  mix-blend-mode: overlay;
+  opacity: 0.4;
+}
+@keyframes sweepGlow {
+  0% { background-position: 100% 0%; opacity: 0.3; }
+  50% { opacity: 0.7; }
+  100% { background-position: 0% 0%; opacity: 0.3; }
+}
+
+/* Orbes de fond (conservés mais plus subtils) */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  animation: float 8s ease-in-out infinite;
+  pointer-events: none;
+}
+[data-theme="light"] .orb { opacity: 0.1; }
+
+.orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, #0066FF, transparent); top: -100px; left: -100px; animation-delay: 0s; }
+.orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, #00D4FF, transparent); bottom: -80px; right: -80px; animation-delay: 3s; }
+.orb-3 { width: 300px; height: 300px; background: radial-gradient(circle, #0044CC, transparent); top: 40%; left: 60%; animation-delay: 5s; }
+
+@keyframes float {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33% { transform: translate(20px, -30px) scale(1.05); }
+  66% { transform: translate(-15px, 20px) scale(0.97); }
+}
+
+.hero-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 18px; border-radius: 30px;
+  border: 1px solid rgba(255,140,66,0.3);
+  background: var(--accent-dim);
+  font-size: 0.78rem; font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 28px;
+  position: relative;
+  animation: slideDown 0.6s var(--ease-spring) both;
+  z-index: 10;
+}
+.pulse-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulseDot 1.8s ease-in-out infinite;
+}
+@keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(1.4)} }
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 6rem);
+  font-weight: 700;
+  line-height: 1.0;
+  max-width: 820px;
+  position: relative;
+  animation: slideUp 0.7s 0.1s var(--ease-spring) both;
+  z-index: 10;
+}
+
+.hero h1 .grad-text {
+  background: var(--grad-sunset);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-style: italic;
+}
+
+.hero-sub {
+  max-width: 500px; margin: 22px auto 0;
+  color: var(--text-secondary);
+  font-size: 1.05rem; line-height: 1.75;
+  position: relative;
+  animation: slideUp 0.7s 0.2s var(--ease-spring) both;
+  z-index: 10;
+}
+
+.hero-actions {
+  display: flex; gap: 14px; margin-top: 40px;
+  flex-wrap: wrap; justify-content: center;
+  position: relative;
+  animation: slideUp 0.7s 0.3s var(--ease-spring) both;
+  z-index: 10;
+}
+
+.btn-hero-primary {
+  padding: 15px 34px; border: none; border-radius: 12px;
+  background: var(--grad-dawn);
+  color: white; font-family: var(--font-body);
+  font-size: 0.95rem; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-spring);
+  box-shadow: 0 8px 24px rgba(0,100,255,0.35);
+  position: relative; overflow: hidden;
+}
+.btn-hero-primary::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+  opacity: 0; transition: opacity 0.2s;
+}
+.btn-hero-primary:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(0,100,255,0.5); }
+.btn-hero-primary:hover::before { opacity: 1; }
+
+.btn-hero-secondary {
+  padding: 15px 34px; border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-hover);
+  color: var(--text-primary);
+  font-family: var(--font-body); font-size: 0.95rem; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+  box-shadow: var(--shadow-card);
+}
+.btn-hero-secondary:hover { transform: translateY(-2px); border-color: var(--accent); color: var(--accent); }
+
+/* Stats hero */
+.hero-stats {
+  display: flex; gap: 52px; margin-top: 64px;
+  flex-wrap: wrap; justify-content: center;
+  position: relative;
+  animation: slideUp 0.7s 0.4s var(--ease-spring) both;
+  z-index: 10;
+}
+.stat-item { text-align: center; }
+.stat-num {
+  font-family: var(--font-display);
+  font-size: 2.2rem; font-weight: 700;
+  background: var(--grad-golden);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-lbl {
+  font-size: 0.73rem; font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1.5px;
+  margin-top: 3px;
+}
+
+@keyframes slideDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideUp   { from{opacity:0;transform:translateY(20px)}  to{opacity:1;transform:translateY(0)} }
+
+/* ═══════════════════════════════════════════
+   GALERIE MOSAIQUE
+═══════════════════════════════════════════ */
+.mosaic-section { padding: 0 0 64px; }
+.mosaic {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-rows: 260px 260px;
+  gap: 4px;
+}
+.mosaic-item {
+  overflow: hidden; position: relative;
+  background: var(--bg-card2);
+}
+.mosaic-item:nth-child(1) { grid-row: span 2; }
+
+.mosaic-photo {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4rem;
+  transition: transform 0.5s var(--ease-smooth);
+}
+.mosaic-item:hover .mosaic-photo { transform: scale(1.06); }
+
+.m1 { background: linear-gradient(145deg, #001030, #002880, #0066FF 200%); }
+.m2 { background: linear-gradient(145deg, #001020, #002040, #00AAFF 200%); }
+.m3 { background: linear-gradient(145deg, #000D28, #001A55, #0055EE 200%); }
+.m4 { background: linear-gradient(145deg, #001825, #003355, #00C3FF 200%); }
+.m5 { background: linear-gradient(145deg, #000820, #001A44, #0044CC 200%); }
+
+[data-theme="light"] .m1 { background: linear-gradient(145deg, #C5DCFF, #80AAFF, #0066FF); }
+[data-theme="light"] .m2 { background: linear-gradient(145deg, #B8E8FF, #70CCFF, #00AAFF); }
+[data-theme="light"] .m3 { background: linear-gradient(145deg, #D0E8FF, #90C4FF, #0055EE); }
+[data-theme="light"] .m4 { background: linear-gradient(145deg, #C0EEFF, #6DDDFF, #00C3FF); }
+[data-theme="light"] .m5 { background: linear-gradient(145deg, #CCE4FF, #88BBFF, #0044CC); }
+
+.mosaic-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%);
+  opacity: 0; transition: opacity 0.3s;
+  display: flex; align-items: flex-end; padding: 18px;
+}
+.mosaic-item:hover .mosaic-overlay { opacity: 1; }
+.mosaic-tag {
+  font-size: 0.8rem; font-weight: 700; color: white;
+  background: var(--grad-sunset);
+  padding: 4px 12px; border-radius: 20px;
+}
+
+/* ═══════════════════════════════════════════
+   SECTIONS COMMUNES
+═══════════════════════════════════════════ */
+section { padding: 80px 5%; }
+
+.section-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 5px 14px; border-radius: 20px;
+  margin-bottom: 14px;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700; line-height: 1.1;
+  max-width: 560px;
+}
+.section-title .grad { background: var(--grad-sunset); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+/* ═══════════════════════════════════════════
+   PHOTOGRAPHES
+═══════════════════════════════════════════ */
+.photogs-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 20px; margin-bottom: 40px;
+}
+.filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tab {
+  padding: 8px 18px; border-radius: 24px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted);
+  cursor: pointer; font-family: var(--font-body);
+  font-size: 0.82rem; font-weight: 600;
+  transition: all 0.25s var(--ease-spring);
+}
+.tab.active, .tab:hover {
+  background: var(--grad-dawn);
+  color: white; border-color: transparent;
+  box-shadow: 0 4px 14px rgba(0,100,255,0.3);
+  transform: translateY(-1px);
+}
+
+.photogs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 20px;
+}
+
+.photog-card {
+  background: var(--bg-card);
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: all 0.3s var(--ease-smooth);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+}
+.photog-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow);
+}
+
+.photog-cover {
+  height: 185px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4rem; position: relative;
+  transition: all 0.3s;
+}
+.c-sunset   { background: linear-gradient(135deg, #0044CC 0%, #0088FF 55%, #00CCFF 100%); }
+.c-ocean    { background: linear-gradient(135deg, #001F80 0%, #0055CC 55%, #0099FF 100%); }
+.c-rose     { background: linear-gradient(135deg, #0033AA 0%, #0077EE 55%, #33BBFF 100%); }
+.c-emerald  { background: linear-gradient(135deg, #003399 0%, #0066FF 55%, #00AAFF 100%); }
+.c-velvet   { background: linear-gradient(135deg, #001166 0%, #0044BB 55%, #0088FF 100%); }
+.c-fire     { background: linear-gradient(135deg, #002266 0%, #005ACC 55%, #00C3FF 100%); }
+
+[data-theme="light"] .c-sunset   { background: linear-gradient(135deg, #80BBFF, #3399FF, #0066FF); }
+[data-theme="light"] .c-ocean    { background: linear-gradient(135deg, #99CCFF, #55AAFF, #0055CC); }
+[data-theme="light"] .c-rose     { background: linear-gradient(135deg, #AACCFF, #66AAFF, #0077EE); }
+[data-theme="light"] .c-emerald  { background: linear-gradient(135deg, #88CCFF, #44BBFF, #0099FF); }
+[data-theme="light"] .c-velvet   { background: linear-gradient(135deg, #99BBFF, #5599FF, #0044BB); }
+[data-theme="light"] .c-fire     { background: linear-gradient(135deg, #AADDFF, #55CCFF, #00AAFF); }
+
+.badge-pro {
+  position: absolute; top: 12px; right: 12px;
+  background: var(--grad-golden);
+  color: #1A0800; font-size: 0.62rem; font-weight: 800;
+  padding: 3px 10px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.badge-ama {
+  position: absolute; top: 12px; right: 12px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  color: white; font-size: 0.62rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 10px;
+}
+
+.photog-info { padding: 16px; }
+.photog-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.avatar {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--grad-sunset);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 800; color: white;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0,100,255,0.35);
+}
+.photog-name { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); }
+.photog-city { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
+.photog-spec {
+  font-size: 0.78rem; font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-dim);
+  display: inline-block;
+  padding: 3px 10px; border-radius: 12px;
+  margin-bottom: 12px;
+}
+.photog-meta { display: flex; justify-content: space-between; align-items: center; }
+.stars { font-size: 0.78rem; color: #FFD700; }
+.stars span { color: var(--text-muted); font-size: 0.72rem; margin-left: 3px; }
+.price { font-size: 0.92rem; font-weight: 700; color: var(--text-primary); }
+.price small { color: var(--text-muted); font-weight: 400; font-size: 0.7rem; }
+
+.photog-btn {
+  width: 100%; margin-top: 14px; padding: 11px;
+  background: var(--grad-dawn);
+  border: none; border-radius: 10px;
+  color: white; font-family: var(--font-body);
+  font-size: 0.85rem; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-spring);
+  box-shadow: 0 4px 14px rgba(0,100,255,0.25);
+}
+.photog-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,100,255,0.45); }
+
+/* ═══════════════════════════════════════════
+   COMMENT ÇA MARCHE
+═══════════════════════════════════════════ */
+.how-section { background: var(--bg-secondary); }
+.how-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px; margin-top: 48px;
+}
+.how-card {
+  padding: 30px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  position: relative; overflow: hidden;
+  transition: all 0.3s var(--ease-smooth);
+  box-shadow: var(--shadow-card);
+}
+.how-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow);
+}
+.how-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.how-card:nth-child(1)::before { background: var(--grad-sunset); }
+.how-card:nth-child(2)::before { background: var(--grad-ocean); }
+.how-card:nth-child(3)::before { background: var(--grad-emerald); }
+.how-card:nth-child(4)::before { background: var(--grad-dawn); }
+
+.how-num {
+  font-family: var(--font-display);
+  font-size: 4rem; font-weight: 700;
+  line-height: 1; margin-bottom: 16px;
+  background: var(--grad-sunset);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; opacity: 0.3;
+}
+.how-icon { font-size: 1.8rem; margin-bottom: 12px; }
+.how-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; color: var(--text-primary); }
+.how-desc { font-size: 0.83rem; color: var(--text-secondary); line-height: 1.6; }
+
+/* ═══════════════════════════════════════════
+   PAIEMENT (version non obligatoire)
+═══════════════════════════════════════════ */
+.payment-section { background: var(--bg-primary); }
+.pay-wrap {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 64px; align-items: center;
+}
+.pay-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 22px; padding: 36px;
+  box-shadow: var(--shadow-card);
+  position: relative; overflow: hidden;
+}
+.pay-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: var(--grad-emerald);
+}
+.pay-label {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 2px; color: var(--text-muted); margin-bottom: 20px;
+}
+.mm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+.mm-option {
+  padding: 14px; border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  cursor: pointer; transition: all 0.25s var(--ease-spring);
+  display: flex; align-items: center; gap: 10px;
+}
+.mm-option:hover, .mm-option.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: scale(1.02);
+}
+.mm-emoji { font-size: 1.4rem; }
+.mm-name { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
+.mm-sub { font-size: 0.7rem; color: var(--text-muted); }
+.pay-input {
+  width: 100%; padding: 13px 16px; border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary); font-family: var(--font-body);
+  font-size: 0.9rem; margin-bottom: 12px; outline: none;
+  transition: border-color 0.2s;
+}
+.pay-input:focus { border-color: var(--accent); }
+.pay-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  background: var(--grad-emerald);
+  color: white; font-family: var(--font-body);
+  font-size: 0.95rem; font-weight: 700;
+  cursor: pointer; transition: all 0.25s;
+  box-shadow: 0 6px 20px rgba(0,100,255,0.35);
+}
+.pay-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,100,255,0.5); }
+.pay-secure { text-align: center; margin-top: 10px; font-size: 0.73rem; color: var(--text-muted); }
+
+.pay-text-side { padding-left: 16px; }
+.check-list { list-style: none; margin-top: 28px; display: flex; flex-direction: column; gap: 14px; }
+.check-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55; }
+.check-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+/* ═══════════════════════════════════════════
+   TARIFS (modifiés : gratuit pour tous)
+═══════════════════════════════════════════ */
+.pricing-section { background: var(--bg-secondary); }
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 22px; margin-top: 52px;
+}
+.price-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 22px; padding: 36px 30px;
+  position: relative;
+  transition: all 0.3s var(--ease-smooth);
+  box-shadow: var(--shadow-card);
+}
+.price-card:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
+.price-card.featured {
+  border-color: transparent;
+  background: linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+              var(--grad-sunset) border-box;
+}
+.price-badge {
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+  background: var(--grad-sunset);
+  color: white; padding: 4px 20px;
+  border-radius: 20px; font-size: 0.72rem;
+  font-weight: 800; text-transform: uppercase;
+  letter-spacing: 1px; white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0,100,255,0.4);
+}
+.price-tier { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+.price-amount { font-family: var(--font-display); font-size: 2.8rem; font-weight: 700; color: var(--text-primary); }
+.price-amount span { font-size: 1rem; font-weight: 400; color: var(--text-muted); font-family: var(--font-body); }
+.price-desc { font-size: 0.82rem; color: var(--text-secondary); margin: 8px 0 24px; }
+.price-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.price-features li { font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 10px; align-items: flex-start; }
+.feat-y { color: #38ef7d; }
+.feat-n { color: var(--text-muted); }
+.price-cta {
+  width: 100%; padding: 13px; border-radius: 12px;
+  font-family: var(--font-body); font-size: 0.9rem; font-weight: 700;
+  cursor: pointer; transition: all 0.25s var(--ease-spring);
+}
+.price-cta-grad { background: var(--grad-dawn); color: white; border: none; box-shadow: 0 4px 14px rgba(0,100,255,0.3); }
+.price-cta-grad:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,100,255,0.45); }
+.price-cta-outline { background: transparent; color: var(--text-primary); border: 1px solid var(--border); }
+.price-cta-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ═══════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg-card);
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  width: 100%; max-width: 460px;
+  animation: modalIn 0.35s var(--ease-spring) both;
+  overflow: hidden; position: relative;
+}
+.modal::before {
+  content: ''; display: block; height: 4px;
+  background: var(--grad-sunset);
+}
+@keyframes modalIn { from{transform:scale(0.92) translateY(20px);opacity:0} to{transform:scale(1) translateY(0);opacity:1} }
+
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+.modal-tab {
+  flex: 1; padding: 16px; text-align: center; cursor: pointer;
+  font-weight: 700; font-size: 0.88rem;
+  color: var(--text-muted);
+  border: none; background: transparent;
+  font-family: var(--font-body);
+  transition: color 0.2s;
+  border-bottom: 2px solid transparent;
+}
+.modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.modal-body { padding: 28px; }
+.modal-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+.modal-sub { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 24px; }
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-input {
+  width: 100%; padding: 12px 14px; border-radius: 10px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-primary); font-family: var(--font-body);
+  font-size: 0.88rem; outline: none; transition: border-color 0.2s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-select {
+  width: 100%; padding: 12px 14px; border-radius: 10px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-primary); font-family: var(--font-body);
+  font-size: 0.88rem; outline: none; appearance: none; cursor: pointer;
+}
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.role-btn {
+  padding: 12px; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted);
+  cursor: pointer; font-family: var(--font-body);
+  font-size: 0.8rem; font-weight: 600;
+  transition: all 0.2s; text-align: center;
+}
+.role-btn.active, .role-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.role-icon { font-size: 1.3rem; display: block; margin-bottom: 4px; }
+.submit-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  background: var(--grad-dawn);
+  color: white; font-family: var(--font-body);
+  font-size: 0.95rem; font-weight: 800;
+  cursor: pointer; transition: all 0.25s var(--ease-spring);
+  margin-top: 8px;
+  box-shadow: 0 6px 20px rgba(0,100,255,0.35);
+}
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,100,255,0.5); }
+.modal-close {
+  position: absolute; top: 16px; right: 18px;
+  background: none; border: none;
+  color: var(--text-muted); font-size: 1.3rem; cursor: pointer;
+  z-index: 2; transition: color 0.2s;
+}
+.modal-close:hover { color: var(--text-primary); }
+
+/* TOGGLE THÈME */
+[data-theme="dark"]  { --toggle-bg: #0D1A2E; }
+[data-theme="light"] { --toggle-bg: #C8E0FF; }
+.theme-knob-light { transform: translateX(20px) !important; }
+
+/* 3e COULEUR CYAN — badges pro, certains accents */
+.badge-pro { background: var(--grad-cyan) !important; color: #002A28 !important; }
+.section-chip { border: 1px solid var(--cyan-dim); }
+.how-card:nth-child(3)::before { background: var(--grad-cyan) !important; }
+.mosaic-tag { background: var(--grad-cyan) !important; color: #003330 !important; }
+.hero-chip { border-color: rgba(0,212,204,0.3); }
+.pulse-dot { background: var(--cyan) !important; }
+/* TOGGLE THÈME */
+[data-theme="dark"]  { --toggle-bg: #0D1A2E; }
+[data-theme="light"] { --toggle-bg: #C8E0FF; }
+
+/* 3e COULEUR CYAN — badges pro, certains accents */
+.badge-pro { background: var(--grad-cyan) !important; color: #002A28 !important; }
+.how-card:nth-child(3)::before { background: var(--grad-cyan) !important; }
+.mosaic-tag { background: var(--grad-cyan) !important; color: #003330 !important; }
+.pulse-dot { background: var(--cyan) !important; }
+.stat-num { background: var(--grad-cyan); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+.toast {
+  position: fixed; bottom: 26px; right: 26px; z-index: 500;
+  background: var(--grad-emerald);
+  color: white; padding: 13px 22px;
+  border-radius: 12px; font-weight: 700; font-size: 0.88rem;
+  transform: translateY(70px) scale(0.9); opacity: 0;
+  transition: all 0.4s var(--ease-spring);
+  box-shadow: 0 8px 24px rgba(0,100,255,0.4);
+}
+.toast.show { transform: translateY(0) scale(1); opacity: 1; }
+
+/* ═══ MOSAÏQUE SCÈNES CINÉMATIQUES ═══ */
+.mosaic-photo { background: #000818 !important; }
+.mosaic-bg-scene { 
+  width:100%; height:100%;
+  transition: transform 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.mosaic-item:hover .mosaic-bg-scene { transform: scale(1.08); }
+.mosaic-overlay {
+  opacity: 0.15 !important; /* Toujours légèrement visible */
+  transition: opacity 0.4s ease !important;
+}
+.mosaic-item:hover .mosaic-overlay { opacity: 1 !important; }
+.mosaic-tag {
+  background: var(--grad-cyan) !important;
+  color: #002A28 !important;
+  font-size: 0.85rem !important;
+  padding: 6px 16px !important;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 14px rgba(0,212,204,0.35);
+}
+/* Label toujours visible en bas (pas juste au hover) */
+.mosaic-overlay { background: linear-gradient(to top, rgba(0,8,24,0.75) 0%, rgba(0,8,24,0.1) 50%, transparent 100%) !important; }
+
+
+/* ═══ ANIMATIONS FLUIDES DE PAGE ═══ */
+@keyframes pageIn {
+  from { opacity:0; transform:translateY(24px) scale(0.98); }
+  to   { opacity:1; transform:translateY(0)    scale(1);    }
+}
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(32px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity:0; transform:translateX(40px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes slideInLeft {
+  from { opacity:0; transform:translateX(-40px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes popIn {
+  from { opacity:0; transform:scale(0.85); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+/* Observer-based scroll animations */
+.anim-fade   { opacity:0; transform:translateY(28px); transition:opacity 0.6s ease, transform 0.6s ease; }
+.anim-left   { opacity:0; transform:translateX(-32px); transition:opacity 0.6s ease, transform 0.6s ease; }
+.anim-right  { opacity:0; transform:translateX(32px);  transition:opacity 0.6s ease, transform 0.6s ease; }
+.anim-pop    { opacity:0; transform:scale(0.9);        transition:opacity 0.5s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+.anim-visible { opacity:1 !important; transform:none !important; }
+
+/* Délais en cascade */
+.anim-d1 { transition-delay:0.05s; }
+.anim-d2 { transition-delay:0.12s; }
+.anim-d3 { transition-delay:0.19s; }
+.anim-d4 { transition-delay:0.26s; }
+
+/* Page entière fade in */
+body { animation: pageIn 0.5s ease both; }
+nav  { animation: pageIn 0.4s ease both; }
+
+/* ═══ MODAL PROFIL PHOTOGRAPHE ═══ */
+.profil-overlay {
+  display:none; position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,0.85); backdrop-filter:blur(12px);
+  align-items:center; justify-content:center; padding:16px;
+}
+.profil-overlay.open { display:flex; }
+.profil-modal {
+  background:var(--bg-card);
+  border:1px solid var(--border-hover);
+  border-radius:24px; width:100%; max-width:520px;
+  max-height:90vh; overflow-y:auto;
+  animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.profil-cover {
+  height:180px; border-radius:24px 24px 0 0;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; font-size:3rem;
+}
+.profil-avatar {
+  position:absolute; bottom:-28px; left:24px;
+  width:60px; height:60px; border-radius:50%;
+  background:var(--grad-sunset);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.4rem; font-weight:800; color:white;
+  border:3px solid var(--bg-card);
+  box-shadow:0 4px 16px rgba(0,100,255,0.35);
+}
+.profil-body { padding:44px 24px 24px; }
+.profil-name { font-family:var(--font-display); font-size:1.6rem; font-weight:700; }
+.profil-meta { display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; }
+.profil-tag {
+  font-size:0.75rem; font-weight:700; padding:4px 12px;
+  border-radius:20px; background:var(--accent-dim); color:var(--accent);
+  display:flex; align-items:center; gap:5px;
+}
+.profil-section { margin-top:20px; }
+.profil-section-titre {
+  font-size:0.72rem; font-weight:800; text-transform:uppercase;
+  letter-spacing:1.5px; color:var(--text-muted); margin-bottom:10px;
+  display:flex; align-items:center; gap:6px;
+}
+.profil-tel-box {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; background:var(--bg-secondary);
+  border:1px solid var(--border); border-radius:12px;
+}
+.profil-tel-num { font-size:1.1rem; font-weight:800; color:var(--accent); letter-spacing:1px; }
+.profil-btn-appel {
+  padding:8px 18px; border-radius:8px; border:none;
+  background:var(--grad-dawn); color:white;
+  font-family:var(--font-body); font-size:0.82rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+  box-shadow:0 4px 12px rgba(0,100,255,0.3);
+}
+.profil-btn-appel:hover { transform:translateY(-2px); }
+
+/* Portfolio grille */
+.portfolio-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:6px;
+  margin-top:8px;
+}
+.portfolio-item {
+  aspect-ratio:1; border-radius:8px; overflow:hidden;
+  background:var(--bg-card2); position:relative;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:transform 0.25s;
+}
+.portfolio-item:hover { transform:scale(1.03); }
+.portfolio-placeholder {
+  width:100%; height:100%; display:flex; align-items:center;
+  justify-content:center; font-size:1.5rem;
+  color:var(--text-muted);
+}
+.portfolio-add {
+  border:2px dashed var(--border-hover);
+  color:var(--accent); font-size:1.6rem; cursor:pointer;
+  transition:all 0.2s;
+}
+.portfolio-add:hover { background:var(--accent-dim); border-color:var(--accent); }
+
+/* ═══ MESSAGERIE / CHAT ═══ */
+.chat-overlay {
+  display:none; position:fixed; inset:0; z-index:350;
+  background:rgba(0,0,0,0.85); backdrop-filter:blur(12px);
+  align-items:flex-end; justify-content:center; padding:0;
+}
+.chat-overlay.open { display:flex; }
+.chat-modal {
+  background:var(--bg-card);
+  border-radius:24px 24px 0 0;
+  border:1px solid var(--border-hover); border-bottom:none;
+  width:100%; max-width:520px; height:80vh;
+  display:flex; flex-direction:column;
+  animation: slideInUp 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes slideInUp {
+  from { transform:translateY(100%); opacity:0; }
+  to   { transform:translateY(0);   opacity:1; }
+}
+.chat-header {
+  padding:16px 20px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px; flex-shrink:0;
+}
+.chat-avatar-sm {
+  width:40px; height:40px; border-radius:50%;
+  background:var(--grad-sunset);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:0.95rem; color:white; flex-shrink:0;
+}
+.chat-nom { font-weight:700; font-size:0.95rem; color:var(--text-primary); }
+.chat-statut { font-size:0.72rem; color:var(--text-muted); margin-top:1px; }
+.chat-close {
+  margin-left:auto; background:none; border:none;
+  color:var(--text-muted); font-size:1.2rem; cursor:pointer;
+  padding:4px 8px; border-radius:6px; transition:color 0.2s;
+}
+.chat-messages {
+  flex:1; overflow-y:auto; padding:16px 20px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.msg-wrap { display:flex; flex-direction:column; }
+.msg-wrap.moi { align-items:flex-end; }
+.msg-bulle {
+  max-width:75%; padding:10px 14px; border-radius:16px;
+  font-size:0.87rem; line-height:1.5; color:var(--text-primary);
+  background:var(--bg-secondary); border:1px solid var(--border);
+}
+.msg-wrap.moi .msg-bulle {
+  background:var(--grad-dawn); border:none; color:white;
+  border-radius:16px 16px 4px 16px;
+}
+.msg-wrap:not(.moi) .msg-bulle { border-radius:16px 16px 16px 4px; }
+.msg-heure {
+  font-size:0.65rem; color:var(--text-muted);
+  margin-top:3px; padding:0 4px;
+}
+.msg-systeme {
+  text-align:center; font-size:0.72rem; color:var(--text-muted);
+  padding:4px 12px; background:var(--bg-secondary);
+  border-radius:20px; align-self:center;
+}
+.chat-input-wrap {
+  padding:12px 16px; border-top:1px solid var(--border);
+  display:flex; gap:10px; align-items:center; flex-shrink:0;
+}
+.chat-input {
+  flex:1; padding:11px 16px; border-radius:24px;
+  background:var(--bg-secondary); border:1px solid var(--border);
+  color:var(--text-primary); font-family:var(--font-body);
+  font-size:0.88rem; outline:none; transition:border-color 0.2s;
+}
+.chat-input:focus { border-color:var(--accent); }
+.chat-send {
+  width:42px; height:42px; border-radius:50%; border:none;
+  background:var(--grad-dawn); color:white; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; transition:all 0.2s;
+  box-shadow:0 4px 12px rgba(0,100,255,0.35);
+}
+.chat-send:hover { transform:scale(1.1); }
+.chat-send svg { width:18px; height:18px; }
+
+/* Bouton messagerie flottant sur les cartes */
+.photog-btn-wrap { display:flex; gap:8px; margin-top:14px; }
+.photog-btn-msg {
+  flex:0 0 42px; height:42px; border-radius:10px; border:none;
+  background:var(--bg-secondary); border:1px solid var(--border-hover);
+  color:var(--accent); cursor:pointer; display:flex;
+  align-items:center; justify-content:center;
+  transition:all 0.25s; flex-shrink:0;
+}
+.photog-btn-msg:hover { background:var(--accent-dim); transform:translateY(-2px); }
+.photog-btn { flex:1; }
+
+/* Badge notification chat */
+.chat-badge {
+  position:absolute; top:-4px; right:-4px;
+  width:16px; height:16px; border-radius:50%;
+  background:var(--grad-cyan); color:#002A28;
+  font-size:0.6rem; font-weight:800;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ═══ BOUTON MESSAGERIE NAV ═══ */
+.nav-chat-btn {
+  position:relative; width:36px; height:36px;
+  border-radius:10px; border:1px solid var(--border);
+  background:transparent; color:var(--accent);
+  cursor:pointer; display:flex; align-items:center;
+  justify-content:center; transition:all 0.2s; flex-shrink:0;
+}
+.nav-chat-btn:hover { background:var(--accent-dim); border-color:var(--accent); }
+
+/* ═══ MODALE PROFIL UTILISATEUR (COMPTE) ═══ */
+.compte-section { padding:20px 24px; border-bottom:1px solid var(--border); }
+.compte-label {
+  font-size:0.7rem; font-weight:800; color:var(--text-muted);
+  text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;
+}
+.compte-input {
+  width:100%; padding:11px 14px; border-radius:10px;
+  background:var(--bg-input); border:1px solid var(--border);
+  color:var(--text-primary); font-family:var(--font-body);
+  font-size:0.88rem; outline:none; transition:border-color 0.2s;
+  margin-bottom:8px;
+}
+.compte-input:focus { border-color:var(--accent); }
+.compte-save {
+  padding:10px 22px; border-radius:10px; border:none;
+  background:var(--grad-dawn); color:white;
+  font-family:var(--font-body); font-size:0.85rem; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+}
+.compte-save:hover { transform:translateY(-1px); }
+
+/* How-icon SVG couleur */
+.how-icon svg { display:block; }
+
+
+/* ═══════════════════════════════════════════
+   FOOTER (avec sections légales)
+═══════════════════════════════════════════ */
+footer {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  padding: 52px 5% 28px;
+}
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+.footer-logo {
+  font-family: var(--font-display);
+  font-size: 1.6rem; font-weight: 700;
+  background: var(--grad-sunset);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 12px;
+}
+.footer-desc { font-size: 0.83rem; color: var(--text-secondary); line-height: 1.65; max-width: 230px; }
+.footer-col h4 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-primary); margin-bottom: 14px; }
+.footer-col a { display: block; font-size: 0.83rem; color: var(--text-secondary); text-decoration: none; margin-bottom: 9px; transition: color 0.2s; }
+.footer-col a:hover { color: var(--accent); }
+.footer-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 24px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+.footer-copy { font-size: 0.78rem; color: var(--text-muted); }
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════ */
+@media(max-width: 1024px) { .mosaic { grid-template-columns: 2fr 1fr; grid-template-rows: auto; } .mosaic-item:nth-child(1){ grid-row:span 1; } }
+@media(max-width: 768px) { .nav-links { display:none; } .pay-wrap { grid-template-columns:1fr; } .pay-text-side { padding-left:0; } .footer-grid { grid-template-columns: 1fr 1fr; } .mosaic { grid-template-columns: 1fr 1fr; } }
+@media(max-width: 480px) { .footer-grid { grid-template-columns: 1fr; } .hero-stats { gap:28px; } .mosaic { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- NAVIGATION (Admin masqué) -->
+<nav>
+  <div class="nav-logo" onclick="window.scrollTo(0,0)">
+    FotoCongo
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;margin-left:6px">
+      <defs>
+        <linearGradient id="camGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#0066FF"/>
+          <stop offset="100%" style="stop-color:#00D4FF"/>
+        </linearGradient>
+      </defs>
+      <!-- Corps appareil -->
+      <rect x="2" y="8" width="24" height="16" rx="3" fill="url(#camGrad)" opacity="0.95"/>
+      <!-- Bosse haut (flash) -->
+      <rect x="9" y="5" width="7" height="4" rx="1.5" fill="url(#camGrad)"/>
+      <!-- Objectif cercle externe -->
+      <circle cx="14" cy="16" r="5.5" fill="#0A1425" stroke="url(#camGrad)" stroke-width="1.5"/>
+      <!-- Objectif cercle interne -->
+      <circle cx="14" cy="16" r="3" fill="url(#camGrad)" opacity="0.7"/>
+      <!-- Point brillant -->
+      <circle cx="15.5" cy="14.5" r="1" fill="white" opacity="0.8"/>
+      <!-- Flash LED -->
+      <circle cx="5.5" cy="11.5" r="1.5" fill="white" opacity="0.9"/>
+    </svg>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#photographes">Photographes</a></li>
+    <li><a href="#comment">Comment ça marche</a></li>
+    <li><a href="#tarifs">Tarifs</a></li>
+    <!-- 🔒 Admin masqué -->
+  </ul>
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="nav-chat-btn" onclick="ouvrirListeChats()" title="Messagerie" style="display:none" id="nav-chat-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="chat-badge" id="nav-badge" style="display:none">1</span>
+    </button>
+    
+    <!-- TOGGLE THÈME -->
+    <button onclick="toggleTheme()" id="theme-btn"
+      style="width:46px;height:26px;border-radius:13px;border:none;cursor:pointer;
+             position:relative;background:var(--toggle-bg);transition:background 0.3s;flex-shrink:0"
+      aria-label="Changer de thème">
+      <span id="theme-knob"
+        style="position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+               background:var(--grad-sunset);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+               box-shadow:0 2px 6px rgba(0,100,255,0.4);display:flex;align-items:center;
+               justify-content:center;font-size:11px">🌙</span>
+    </button>
+    <div id="nav-btns">
+      <button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
+      <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO (avec nouveau halo lumineux) -->
+<section class="hero">
+  <!-- NOUVEAU HALO LUMINEUX ANIMÉ -->
+  <div class="hero-glow"></div>
+  <!-- Orbes conservés mais plus subtils -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="hero-chip"><div class="pulse-dot"></div> N°1 de la photographie au Congo 🇨🇬</div>
+  <h1>Votre moment mérite<br>un <span class="grad-text">photographe</span><br>d'exception</h1>
+  <p class="hero-sub">FotoCongo connecte les meilleurs talents photographiques de Brazzaville et Pointe-Noire avec des clients exigeants. <strong>Inscription gratuite pour tous.</strong></p>
+  <div class="hero-actions">
+    <button class="btn-hero-primary" onclick="document.getElementById('photographes').scrollIntoView({behavior:'smooth'})">📸 Trouver un photographe</button>
+    <button class="btn-hero-secondary" onclick="openModal('signup')">🎯 Je suis photographe</button>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-item"><div class="stat-num">120+</div><div class="stat-lbl">Photographes</div></div>
+    <div class="stat-item"><div class="stat-num">850+</div><div class="stat-lbl">Missions réalisées</div></div>
+    <div class="stat-item"><div class="stat-num">4.9★</div><div class="stat-lbl">Note moyenne</div></div>
+    <div class="stat-item"><div class="stat-num">2 villes</div><div class="stat-lbl">Couvertes</div></div>
+  </div>
+</section>
+
+<!-- MOSAIQUE -->
+<div class="mosaic-section">
+  <div class="mosaic">
+    <div class="mosaic-item">
+      <div class="mosaic-photo m1" style="position:relative;overflow:hidden">
+        <div class="mosaic-bg-scene" style="position:absolute;inset:0;z-index:0"><svg width="100%" height="100%" viewBox="0 0 400 520" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#000818"/>
+      <stop offset="60%" stop-color="#001855"/>
+      <stop offset="100%" stop-color="#003399"/>
+    </linearGradient>
+    <linearGradient id="mg2" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0066FF" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#00D4CC" stop-opacity="0.2"/>
+    </linearGradient>
+    <radialGradient id="mg3" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#0033AA" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mg-overlay" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#001030" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#000818" stop-opacity="0.85"/>
+    </linearGradient>
+    <filter id="glow-m">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="400" height="520" fill="url(#mg1)"/>
+  <rect width="400" height="520" fill="url(#mg3)"/>
+
+  <!-- Étoiles / bokeh de fond -->
+  <circle cx="60" cy="80" r="1.5" fill="white" opacity="0.4"/>
+  <circle cx="140" cy="40" r="1" fill="white" opacity="0.3"/>
+  <circle cx="220" cy="90" r="2" fill="white" opacity="0.25"/>
+  <circle cx="300" cy="55" r="1.5" fill="white" opacity="0.35"/>
+  <circle cx="370" cy="100" r="1" fill="white" opacity="0.3"/>
+  <circle cx="30" cy="160" r="1" fill="white" opacity="0.2"/>
+  <circle cx="380" cy="180" r="1.5" fill="white" opacity="0.25"/>
+  <circle cx="180" cy="30" r="1" fill="white" opacity="0.4"/>
+  <circle cx="250" cy="130" r="2.5" fill="#00D4CC" opacity="0.2"/>
+  <circle cx="80" cy="200" r="2" fill="#0066FF" opacity="0.15"/>
+
+  <!-- Architecture : arche de mariage -->
+  <!-- Pilier gauche -->
+  <rect x="60" y="180" width="18" height="260" rx="9" fill="white" opacity="0.12"/>
+  <rect x="62" y="180" width="14" height="260" rx="7" fill="url(#mg2)" opacity="0.3"/>
+  <!-- Pilier droit -->
+  <rect x="322" y="180" width="18" height="260" rx="9" fill="white" opacity="0.12"/>
+  <rect x="324" y="180" width="14" height="260" rx="7" fill="url(#mg2)" opacity="0.3"/>
+  <!-- Arche (demi-cercle) -->
+  <path d="M69 220 Q200 80 331 220" stroke="white" stroke-width="3" fill="none" opacity="0.2" stroke-dasharray="6,4"/>
+  <path d="M69 220 Q200 80 331 220" stroke="url(#mg2)" stroke-width="8" fill="none" opacity="0.35"/>
+  <!-- Halo lumineux arche -->
+  <path d="M69 220 Q200 80 331 220" stroke="#00D4CC" stroke-width="1" fill="none" opacity="0.6"/>
+
+  <!-- Guirlandes lumineuses -->
+  <path d="M69 220 Q110 210 140 230 Q170 250 200 240 Q230 230 260 250 Q290 270 331 220" stroke="white" stroke-width="0.8" fill="none" opacity="0.25" stroke-dasharray="3,6"/>
+  <!-- Petites lumières sur la guirlande -->
+  <circle cx="110" cy="215" r="3" fill="#FFD700" opacity="0.5"/>
+  <circle cx="160" cy="238" r="3" fill="#FFD700" opacity="0.5"/>
+  <circle cx="200" cy="241" r="3" fill="#FFD700" opacity="0.6"/>
+  <circle cx="240" cy="248" r="3" fill="#FFD700" opacity="0.5"/>
+  <circle cx="290" cy="265" r="3" fill="#FFD700" opacity="0.5"/>
+
+  <!-- Silhouette mariés -->
+  <!-- Robe de mariée -->
+  <path d="M175 290 Q168 310 155 340 Q142 370 148 400 Q165 410 200 410 Q218 410 220 400 Q220 380 220 350 Q215 320 210 295 Q205 285 200 283 Q195 282 190 283 Q183 285 175 290Z" fill="white" opacity="0.55"/>
+  <!-- Voile -->
+  <path d="M192 270 Q220 265 240 290 Q248 310 240 340 Q232 360 220 350" stroke="white" stroke-width="1" fill="white" opacity="0.2"/>
+  <!-- Corps mariée -->
+  <ellipse cx="195" cy="278" rx="12" ry="16" fill="white" opacity="0.6"/>
+  <!-- Tête mariée -->
+  <circle cx="196" cy="258" r="13" fill="white" opacity="0.55"/>
+  <!-- Couronne -->
+  <path d="M187 248 L190 242 L194 247 L198 240 L202 247 L206 242 L209 248" stroke="#FFD700" stroke-width="1.5" fill="none" opacity="0.7"/>
+
+  <!-- Marié -->
+  <rect x="220" y="285" width="28" height="90" rx="6" fill="white" opacity="0.3"/>
+  <!-- Veste -->
+  <path d="M220 285 Q230 280 234 285 L234 320 Q230 325 226 320 Z" fill="white" opacity="0.45"/>
+  <path d="M248 285 Q238 280 234 285 L234 320 Q238 325 242 320 Z" fill="white" opacity="0.45"/>
+  <!-- Nœud pap -->
+  <path d="M230 293 L238 297 L230 300 Z" fill="#00D4CC" opacity="0.7"/>
+  <path d="M246 293 L238 297 L246 300 Z" fill="#00D4CC" opacity="0.7"/>
+  <!-- Tête marié -->
+  <circle cx="234" cy="267" r="13" fill="white" opacity="0.5"/>
+
+  <!-- Pétales tombants -->
+  <ellipse cx="100" cy="300" rx="5" ry="8" fill="white" opacity="0.15" transform="rotate(-20,100,300)"/>
+  <ellipse cx="320" cy="350" rx="4" ry="7" fill="white" opacity="0.12" transform="rotate(15,320,350)"/>
+  <ellipse cx="150" cy="430" rx="5" ry="8" fill="#FFD700" opacity="0.1" transform="rotate(-10,150,430)"/>
+  <ellipse cx="280" cy="420" rx="4" ry="7" fill="white" opacity="0.1" transform="rotate(25,280,420)"/>
+  <ellipse cx="90" cy="460" rx="3" ry="6" fill="white" opacity="0.08" transform="rotate(-5,90,460)"/>
+  <ellipse cx="340" cy="470" rx="4" ry="6" fill="white" opacity="0.1" transform="rotate(20,340,470)"/>
+
+  <!-- Fleurs décoratives -->
+  <circle cx="69" cy="220" r="12" fill="white" opacity="0.08"/>
+  <circle cx="69" cy="220" r="7" fill="white" opacity="0.12"/>
+  <circle cx="331" cy="220" r="12" fill="white" opacity="0.08"/>
+  <circle cx="331" cy="220" r="7" fill="white" opacity="0.12"/>
+
+  <!-- Overlay dégradé final -->
+  <rect width="400" height="520" fill="url(#mg-overlay)"/>
+
+  <!-- Halo central lumineux subtil -->
+  <ellipse cx="200" cy="300" rx="120" ry="150" fill="white" opacity="0.03"/>
+</svg></div>
+        <div class="mosaic-icon-overlay" style="position:relative;z-index:1;opacity:0.0"><!-- vide --></div>
+      </div>
+      <div class="mosaic-overlay"><span class="mosaic-tag">Mariage</span></div>
+    </div>
+    <div class="mosaic-item">
+      <div class="mosaic-photo m2" style="position:relative;overflow:hidden">
+        <div class="mosaic-bg-scene" style="position:absolute;inset:0;z-index:0"><svg width="100%" height="100%" viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#000C22"/>
+      <stop offset="100%" stop-color="#001A44"/>
+    </linearGradient>
+    <radialGradient id="pg2" cx="55%" cy="45%" r="45%">
+      <stop offset="0%" stop-color="#0044BB" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#000C22" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pg-light" cx="55%" cy="30%" r="35%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pg-overlay" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#000C22" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#000C22" stop-opacity="0.8"/>
+    </linearGradient>
+    <clipPath id="pg-clip"><rect width="400" height="260"/></clipPath>
+  </defs>
+
+  <rect width="400" height="260" fill="url(#pg1)"/>
+  <rect width="400" height="260" fill="url(#pg2)"/>
+
+  <!-- Fond : studio photo — cercles lumière bokeh -->
+  <circle cx="80" cy="60" r="35" fill="#0066FF" opacity="0.08"/>
+  <circle cx="340" cy="180" r="45" fill="#00D4CC" opacity="0.06"/>
+  <circle cx="200" cy="30" r="20" fill="white" opacity="0.04"/>
+  <circle cx="40" cy="200" r="25" fill="#0033AA" opacity="0.1"/>
+
+  <!-- Grille studio subtile -->
+  <line x1="0" y1="130" x2="400" y2="130" stroke="white" stroke-width="0.3" opacity="0.06"/>
+  <line x1="200" y1="0" x2="200" y2="260" stroke="white" stroke-width="0.3" opacity="0.06"/>
+
+  <!-- Lumière studio (spot) -->
+  <path d="M300 0 L240 90 L360 90 Z" fill="white" opacity="0.04"/>
+  <circle cx="300" cy="15" r="12" fill="white" opacity="0.12"/>
+  <circle cx="300" cy="15" r="6" fill="white" opacity="0.2"/>
+
+  <!-- Silhouette portrait féminin — 3/4 -->
+  <!-- Épaules / corps -->
+  <path d="M155 260 Q145 230 140 210 Q135 190 145 175 Q155 162 170 158 Q185 155 200 155 Q215 155 228 158 Q243 162 252 175 Q260 190 257 210 Q252 230 245 260Z" fill="white" opacity="0.45"/>
+  <!-- Cou -->
+  <rect x="190" y="138" width="22" height="25" rx="11" fill="white" opacity="0.5"/>
+  <!-- Tête -->
+  <ellipse cx="200" cy="112" rx="36" ry="44" fill="white" opacity="0.5"/>
+  <!-- Ombre visage (définit les traits) -->
+  <ellipse cx="192" cy="108" rx="28" ry="35" fill="#0033AA" opacity="0.12"/>
+  <!-- Cheveux -->
+  <path d="M164 95 Q162 70 172 58 Q182 46 200 44 Q218 44 228 58 Q238 70 236 95 Q228 75 200 72 Q172 75 164 95Z" fill="#001A44" opacity="0.6"/>
+  <path d="M164 95 Q155 110 158 130 Q162 145 165 155" stroke="#001A44" stroke-width="8" fill="none" opacity="0.5"/>
+  <path d="M236 95 Q244 110 241 130 Q237 145 235 155" stroke="#001A44" stroke-width="6" fill="none" opacity="0.4"/>
+  <!-- Yeux -->
+  <ellipse cx="187" cy="107" rx="6" ry="4" fill="#001A44" opacity="0.5"/>
+  <ellipse cx="213" cy="107" rx="6" ry="4" fill="#001A44" opacity="0.5"/>
+  <circle cx="188" cy="106" r="2" fill="white" opacity="0.6"/>
+  <circle cx="214" cy="106" r="2" fill="white" opacity="0.6"/>
+  <!-- Lèvres -->
+  <path d="M192 128 Q200 133 208 128" stroke="white" stroke-width="1.5" fill="none" opacity="0.5"/>
+
+  <!-- Lumière sur le visage (rim light) -->
+  <path d="M236 80 Q245 100 240 130 Q238 145 235 155" stroke="#00D4CC" stroke-width="2" fill="none" opacity="0.3"/>
+  <ellipse cx="236" cy="112" rx="6" ry="40" fill="#00AAFF" opacity="0.08"/>
+
+  <!-- Appareil photo en bas à droite -->
+  <rect x="310" y="190" width="70" height="50" rx="8" fill="white" opacity="0.1" stroke="white" stroke-width="0.8" stroke-opacity="0.2"/>
+  <circle cx="340" cy="215" r="14" stroke="white" stroke-width="1.5" fill="none" opacity="0.25"/>
+  <circle cx="340" cy="215" r="8" fill="white" opacity="0.12"/>
+  <circle cx="340" cy="215" r="3" fill="#0066FF" opacity="0.4"/>
+  <rect x="322" y="183" width="20" height="10" rx="4" fill="white" opacity="0.1"/>
+  <circle cx="365" cy="198" r="4" fill="white" opacity="0.15"/>
+
+  <!-- Overlay -->
+  <rect width="400" height="260" fill="url(#pg-overlay)"/>
+  <rect width="400" height="260" fill="url(#pg-light)"/>
+</svg></div>
+      </div>
+      <div class="mosaic-overlay"><span class="mosaic-tag">Portrait</span></div>
+    </div>
+    <div class="mosaic-item">
+      <div class="mosaic-photo m3" style="position:relative;overflow:hidden">
+        <div class="mosaic-bg-scene" style="position:absolute;inset:0;z-index:0"><svg width="100%" height="100%" viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mod1" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#000A1E"/>
+      <stop offset="50%" stop-color="#001240"/>
+      <stop offset="100%" stop-color="#002266"/>
+    </linearGradient>
+    <linearGradient id="mod2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00D4CC" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#0066FF" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="mod-overlay" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#000A1E" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#000A1E" stop-opacity="0.75"/>
+    </linearGradient>
+    <radialGradient id="mod-spot" cx="50%" cy="20%" r="40%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="400" height="260" fill="url(#mod1)"/>
+  <rect width="400" height="260" fill="url(#mod2)"/>
+
+  <!-- Lignes géométriques mode -->
+  <line x1="0" y1="0" x2="400" y2="260" stroke="white" stroke-width="0.4" opacity="0.06"/>
+  <line x1="400" y1="0" x2="0" y2="260" stroke="white" stroke-width="0.4" opacity="0.06"/>
+  <line x1="200" y1="0" x2="200" y2="260" stroke="#00D4CC" stroke-width="0.5" opacity="0.1"/>
+
+  <!-- Reflets piste passerelle -->
+  <rect x="130" y="200" width="140" height="60" fill="white" opacity="0.03"/>
+  <rect x="160" y="210" width="80" height="50" fill="white" opacity="0.03"/>
+
+  <!-- Spot lumineux du haut -->
+  <path d="M180 0 L120 100 L280 100 L220 0Z" fill="white" opacity="0.04"/>
+  <ellipse cx="200" cy="8" rx="30" ry="8" fill="white" opacity="0.15"/>
+
+  <!-- Silhouette mannequin défilé — posture dynamique -->
+  <!-- Jambes écartées en marche -->
+  <path d="M180 260 Q178 230 182 210 Q186 195 190 185" stroke="white" stroke-width="14" stroke-linecap="round" fill="none" opacity="0.4"/>
+  <path d="M220 260 Q224 225 216 205 Q210 195 208 185" stroke="white" stroke-width="14" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <!-- Robe / tenue longue -->
+  <path d="M175 170 Q165 195 155 230 Q148 250 150 260 L250 260 Q252 250 244 230 Q234 195 224 170 Q215 160 200 158 Q186 160 175 170Z" fill="white" opacity="0.38"/>
+  <!-- Drapé robe -->
+  <path d="M175 170 Q168 195 162 220 Q158 240 160 260" stroke="white" stroke-width="1" fill="none" opacity="0.2"/>
+  <path d="M224 170 Q231 195 237 220 Q241 240 240 260" stroke="white" stroke-width="1" fill="none" opacity="0.2"/>
+  <!-- Corps haut -->
+  <path d="M182 150 Q182 165 175 170 Q190 175 200 173 Q210 175 224 170 Q217 165 218 150Z" fill="white" opacity="0.5"/>
+  <!-- Épaules -->
+  <path d="M175 148 Q160 145 148 155 Q145 160 150 165 Q162 160 175 165" fill="white" opacity="0.35"/>
+  <path d="M225 148 Q240 145 252 155 Q255 160 250 165 Q238 160 225 165" fill="white" opacity="0.35"/>
+  <!-- Bras levé / posture -->
+  <path d="M148 155 Q138 140 132 125 Q128 115 132 108" stroke="white" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.35"/>
+  <path d="M250 165 Q260 150 268 138" stroke="white" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.3"/>
+  <!-- Cou -->
+  <rect x="193" y="132" width="16" height="20" rx="8" fill="white" opacity="0.5"/>
+  <!-- Tête -->
+  <ellipse cx="200" cy="114" rx="22" ry="26" fill="white" opacity="0.5"/>
+  <!-- Cheveux fluides mode -->
+  <path d="M178 105 Q176 85 185 75 Q195 68 200 67 Q210 68 216 78 Q222 90 218 108" fill="#001240" opacity="0.55"/>
+  <path d="M178 105 Q170 115 174 130" stroke="#001240" stroke-width="6" fill="none" opacity="0.4"/>
+  <path d="M220 108 Q228 118 226 135" stroke="#001240" stroke-width="5" fill="none" opacity="0.35"/>
+  <!-- Accessoire : sac à main -->
+  <rect x="252" y="150" width="30" height="22" rx="6" fill="white" opacity="0.18" stroke="white" stroke-width="0.8" stroke-opacity="0.3"/>
+  <path d="M258 150 Q258 143 262 143 L274 143 Q278 143 278 150" stroke="white" stroke-width="1.5" fill="none" opacity="0.3"/>
+  <!-- Reflet sol passerelle -->
+  <ellipse cx="200" cy="260" rx="50" ry="8" fill="white" opacity="0.05"/>
+
+  <rect width="400" height="260" fill="url(#mod-overlay)"/>
+  <rect width="400" height="260" fill="url(#mod-spot)"/>
+</svg></div>
+      </div>
+      <div class="mosaic-overlay"><span class="mosaic-tag">Mode</span></div>
+    </div>
+    <div class="mosaic-item">
+      <div class="mosaic-photo m4" style="position:relative;overflow:hidden">
+        <div class="mosaic-bg-scene" style="position:absolute;inset:0;z-index:0"><svg width="100%" height="100%" viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nat1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#000E18"/>
+      <stop offset="40%" stop-color="#001825"/>
+      <stop offset="100%" stop-color="#002233"/>
+    </linearGradient>
+    <linearGradient id="nat-sun" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF8C00" stop-opacity="0.25"/>
+      <stop offset="60%" stop-color="#FF4500" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#001825" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="nat-glow" cx="70%" cy="25%" r="30%">
+      <stop offset="0%" stop-color="#FFD700" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#FF8C00" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="nat-water" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#001A33"/>
+      <stop offset="50%" stop-color="#003355"/>
+      <stop offset="100%" stop-color="#001A33"/>
+    </linearGradient>
+    <linearGradient id="nat-overlay" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#000E18" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#000E18" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="400" height="260" fill="url(#nat1)"/>
+
+  <!-- Coucher de soleil / lever -->
+  <rect width="400" height="260" fill="url(#nat-sun)"/>
+  <rect width="400" height="260" fill="url(#nat-glow)"/>
+
+  <!-- Soleil -->
+  <circle cx="300" cy="65" r="28" fill="#FF8C00" opacity="0.2"/>
+  <circle cx="300" cy="65" r="18" fill="#FFD700" opacity="0.25"/>
+  <circle cx="300" cy="65" r="10" fill="#FFD700" opacity="0.4"/>
+  <!-- Rayons soleil -->
+  <line x1="300" y1="30" x2="300" y2="20" stroke="#FFD700" stroke-width="1.5" opacity="0.25"/>
+  <line x1="320" y1="38" x2="328" y2="30" stroke="#FFD700" stroke-width="1.5" opacity="0.2"/>
+  <line x1="330" y1="58" x2="342" y2="55" stroke="#FFD700" stroke-width="1.5" opacity="0.2"/>
+  <line x1="280" y1="38" x2="272" y2="30" stroke="#FFD700" stroke-width="1.5" opacity="0.2"/>
+  <line x1="270" y1="58" x2="258" y2="55" stroke="#FFD700" stroke-width="1.5" opacity="0.2"/>
+
+  <!-- Montagnes lointaines -->
+  <path d="M0 160 L50 110 L100 140 L160 90 L220 125 L280 80 L340 115 L400 85 L400 180 L0 180Z" fill="#001A33" opacity="0.7"/>
+  <path d="M0 160 L50 110 L100 140 L160 90 L220 125 L280 80 L340 115 L400 85 L400 180 L0 180Z" fill="#003355" opacity="0.3"/>
+
+  <!-- Montagnes proches -->
+  <path d="M0 180 L60 140 L130 165 L200 130 L270 155 L340 135 L400 150 L400 200 L0 200Z" fill="#001225" opacity="0.8"/>
+
+  <!-- Forêt / arbres silhouette -->
+  <!-- Arbres gauche -->
+  <path d="M20 200 L20 260" stroke="#001A33" stroke-width="4"/>
+  <path d="M20 200 L5 230 L35 230Z" fill="#001A33" opacity="0.7"/>
+  <path d="M20 185 L2 215 L38 215Z" fill="#001A33" opacity="0.6"/>
+  <path d="M20 170 L6 200 L34 200Z" fill="#00152A" opacity="0.7"/>
+
+  <path d="M55 200 L55 260" stroke="#001A33" stroke-width="3"/>
+  <path d="M55 200 L42 228 L68 228Z" fill="#001A33" opacity="0.6"/>
+  <path d="M55 185 L40 212 L70 212Z" fill="#001225" opacity="0.65"/>
+
+  <!-- Arbres droite -->
+  <path d="M360 195 L360 260" stroke="#001A33" stroke-width="4"/>
+  <path d="M360 195 L345 225 L375 225Z" fill="#001A33" opacity="0.7"/>
+  <path d="M360 178 L342 208 L378 208Z" fill="#001A33" opacity="0.6"/>
+
+  <path d="M390 200 L390 260" stroke="#001A33" stroke-width="3"/>
+  <path d="M390 200 L377 228 L403 228Z" fill="#001A33" opacity="0.5"/>
+
+  <!-- Lac / rivière -->
+  <path d="M80 215 Q200 205 320 215 Q360 220 400 218 L400 245 Q360 240 320 235 Q200 225 80 235 Q40 240 0 238 L0 218 Q40 220 80 215Z" fill="url(#nat-water)" opacity="0.7"/>
+  <!-- Reflets sur l'eau -->
+  <line x1="120" y1="220" x2="180" y2="225" stroke="white" stroke-width="0.8" opacity="0.12"/>
+  <line x1="220" y1="218" x2="300" y2="223" stroke="white" stroke-width="0.8" opacity="0.1"/>
+  <!-- Reflet soleil sur l'eau -->
+  <ellipse cx="305" cy="225" rx="25" ry="4" fill="#FFD700" opacity="0.08"/>
+
+  <!-- Oiseau en vol -->
+  <path d="M230 95 Q238 90 246 95" stroke="white" stroke-width="1.5" fill="none" opacity="0.4"/>
+  <path d="M250 92 Q258 87 266 92" stroke="white" stroke-width="1.5" fill="none" opacity="0.35"/>
+  <path d="M200 100 Q208 95 216 100" stroke="white" stroke-width="1" fill="none" opacity="0.25"/>
+
+  <!-- Étoiles -->
+  <circle cx="100" cy="40" r="1.5" fill="white" opacity="0.4"/>
+  <circle cx="160" cy="25" r="1" fill="white" opacity="0.35"/>
+  <circle cx="80" cy="60" r="1" fill="white" opacity="0.3"/>
+  <circle cx="200" cy="35" r="1.5" fill="white" opacity="0.25"/>
+  <circle cx="140" cy="55" r="1" fill="white" opacity="0.2"/>
+
+  <rect width="400" height="260" fill="url(#nat-overlay)"/>
+</svg></div>
+      </div>
+      <div class="mosaic-overlay"><span class="mosaic-tag">Nature</span></div>
+    </div>
+    <div class="mosaic-item">
+      <div class="mosaic-photo m5" style="position:relative;overflow:hidden">
+        <div class="mosaic-bg-scene" style="position:absolute;inset:0;z-index:0"><svg width="100%" height="100%" viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ev1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A0018"/>
+      <stop offset="50%" stop-color="#110022"/>
+      <stop offset="100%" stop-color="#180830"/>
+    </linearGradient>
+    <radialGradient id="ev-spot1" cx="30%" cy="15%" r="35%">
+      <stop offset="0%" stop-color="#7700FF" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#7700FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ev-spot2" cx="70%" cy="10%" r="35%">
+      <stop offset="0%" stop-color="#0066FF" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0066FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ev-spot3" cx="50%" cy="60%" r="40%">
+      <stop offset="0%" stop-color="#FF0088" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#FF0088" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ev-overlay" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0A0018" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#0A0018" stop-opacity="0.75"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="400" height="260" fill="url(#ev1)"/>
+  <rect width="400" height="260" fill="url(#ev-spot1)"/>
+  <rect width="400" height="260" fill="url(#ev-spot2)"/>
+  <rect width="400" height="260" fill="url(#ev-spot3)"/>
+
+  <!-- Spots / faisceaux lumineux scène -->
+  <path d="M80 0 L30 180 L130 180Z" fill="#7700FF" opacity="0.08"/>
+  <path d="M160 0 L100 200 L220 200Z" fill="#0066FF" opacity="0.07"/>
+  <path d="M240 0 L180 190 L300 190Z" fill="#FF0088" opacity="0.06"/>
+  <path d="M320 0 L270 180 L370 180Z" fill="#7700FF" opacity="0.07"/>
+
+  <!-- Spots lumières (têtes) -->
+  <ellipse cx="80" cy="8" rx="15" ry="6" fill="white" opacity="0.2"/>
+  <ellipse cx="160" cy="8" rx="15" ry="6" fill="white" opacity="0.2"/>
+  <ellipse cx="240" cy="8" rx="15" ry="6" fill="white" opacity="0.2"/>
+  <ellipse cx="320" cy="8" rx="15" ry="6" fill="white" opacity="0.2"/>
+
+  <!-- Confettis / particules -->
+  <rect x="50" y="50" width="6" height="4" rx="1" fill="#FFD700" opacity="0.5" transform="rotate(-20,50,50)"/>
+  <rect x="120" y="35" width="5" height="3" rx="1" fill="#FF0088" opacity="0.45" transform="rotate(15,120,35)"/>
+  <rect x="180" y="60" width="7" height="4" rx="1" fill="#00D4CC" opacity="0.4" transform="rotate(-35,180,60)"/>
+  <rect x="250" y="45" width="5" height="3" rx="1" fill="#FFD700" opacity="0.5" transform="rotate(25,250,45)"/>
+  <rect x="310" y="70" width="6" height="4" rx="1" fill="#7700FF" opacity="0.45" transform="rotate(-10,310,70)"/>
+  <rect x="70" y="120" width="5" height="3" rx="1" fill="#FF0088" opacity="0.3" transform="rotate(30,70,120)"/>
+  <rect x="340" y="100" width="6" height="4" rx="1" fill="#FFD700" opacity="0.35" transform="rotate(-25,340,100)"/>
+  <circle cx="95" cy="80" r="3" fill="#00D4CC" opacity="0.3"/>
+  <circle cx="290" cy="90" r="2.5" fill="#FF0088" opacity="0.35"/>
+  <circle cx="200" cy="45" r="3" fill="#FFD700" opacity="0.3"/>
+  <circle cx="350" cy="55" r="2" fill="#7700FF" opacity="0.4"/>
+
+  <!-- Silhouettes foule (concert/gala) -->
+  <!-- Rangée arrière -->
+  <ellipse cx="60" cy="210" rx="18" ry="50" fill="white" opacity="0.08"/>
+  <ellipse cx="100" cy="215" rx="15" ry="45" fill="white" opacity="0.06"/>
+  <ellipse cx="135" cy="205" rx="20" ry="55" fill="white" opacity="0.09"/>
+  <ellipse cx="175" cy="210" rx="16" ry="50" fill="white" opacity="0.07"/>
+  <ellipse cx="210" cy="208" rx="18" ry="52" fill="white" opacity="0.08"/>
+  <ellipse cx="250" cy="215" rx="15" ry="45" fill="white" opacity="0.06"/>
+  <ellipse cx="285" cy="205" rx="19" ry="55" fill="white" opacity="0.09"/>
+  <ellipse cx="325" cy="210" rx="17" ry="50" fill="white" opacity="0.07"/>
+  <ellipse cx="360" cy="213" rx="16" ry="47" fill="white" opacity="0.08"/>
+
+  <!-- Bras levés -->
+  <line x1="60" y1="175" x2="48" y2="150" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.1"/>
+  <line x1="135" y1="170" x2="148" y2="145" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.12"/>
+  <line x1="210" y1="172" x2="198" y2="148" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.1"/>
+  <line x1="285" y1="168" x2="298" y2="144" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.11"/>
+
+  <!-- Scène / estrade -->
+  <rect x="0" y="220" width="400" height="40" rx="0" fill="#1A0835" opacity="0.7"/>
+  <rect x="0" y="220" width="400" height="4" fill="#7700FF" opacity="0.3"/>
+  <!-- Sol réfléchissant scène -->
+  <rect x="0" y="220" width="400" height="40" fill="url(#ev-spot2)" opacity="0.2"/>
+
+  <!-- Micro sur pied (artiste silhouette) -->
+  <line x1="200" y1="160" x2="200" y2="220" stroke="white" stroke-width="1.5" opacity="0.35"/>
+  <ellipse cx="200" cy="157" rx="8" ry="10" stroke="white" stroke-width="1.5" fill="none" opacity="0.3"/>
+  <!-- Silhouette artiste -->
+  <circle cx="200" cy="135" r="14" fill="white" opacity="0.2"/>
+  <path d="M188 148 Q188 170 185 180" stroke="white" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.2"/>
+  <path d="M212 148 Q212 170 215 180" stroke="white" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.2"/>
+
+  <rect width="400" height="260" fill="url(#ev-overlay)"/>
+</svg></div>
+      </div>
+      <div class="mosaic-overlay"><span class="mosaic-tag">Événement</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- PHOTOGRAPHES -->
+<section id="photographes">
+  <div class="photogs-header">
+    <div>
+      <div class="section-chip">✨ Nos talents</div>
+      <h2 class="section-title">Photographes <span class="grad">disponibles</span></h2>
+    </div>
+    <div class="filter-tabs">
+      <button class="tab active" onclick="filterTab(this)">Tous</button>
+      <button class="tab" onclick="filterTab(this)">Mariage</button>
+      <button class="tab" onclick="filterTab(this)">Portrait</button>
+      <button class="tab" onclick="filterTab(this)">Événement</button>
+      <button class="tab" onclick="filterTab(this)">Corporate</button>
+    </div>
+  </div>
+  <div class="photogs-grid" id="photogs-grid">
+    <div style="color:var(--text-muted);padding:20px">Chargement des photographes...</div>
+  </div>
+</section>
+
+<!-- COMMENT ÇA MARCHE -->
+<section id="comment" class="how-section">
+  <div class="section-chip">🚀 Simple & rapide</div>
+  <h2 class="section-title">Comment ça <span class="grad">marche</span> ?</h2>
+  <div class="how-grid">
+    <div class="how-card anim-fade anim-d1">
+      <div class="how-num">01</div>
+      <div class="how-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <circle cx="14" cy="14" r="8" stroke="url(#gs)" stroke-width="2.5" fill="none"/>
+      <line x1="20" y1="20" x2="28" y2="28" stroke="url(#gs)" stroke-width="2.5" stroke-linecap="round"/>
+      <defs><linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div>
+      <div class="how-title">Cherchez un photographe</div>
+      <div class="how-desc">Parcourez les profils, comparez les portfolios et les tarifs selon votre budget.</div>
+    </div>
+    <div class="how-card anim-fade anim-d2">
+      <div class="how-num">02</div>
+      <div class="how-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect x="9" y="3" width="14" height="26" rx="3" stroke="url(#gph)" stroke-width="2.5" fill="none"/>
+      <circle cx="16" cy="26" r="1.5" fill="url(#gph)"/>
+      <line x1="12" y1="7" x2="20" y2="7" stroke="url(#gph)" stroke-width="1.5" stroke-linecap="round"/>
+      <defs><linearGradient id="gph" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div>
+      <div class="how-title">Contactez-le directement</div>
+      <div class="how-desc">Discutez de votre projet, fixez la date et le prix directement avec le photographe.</div>
+    </div>
+    <div class="how-card anim-fade anim-d3">
+      <div class="how-num">03</div>
+      <div class="how-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect x="3" y="8" width="26" height="18" rx="3" stroke="url(#gpay)" stroke-width="2.5" fill="none"/>
+      <line x1="3" y1="14" x2="29" y2="14" stroke="url(#gpay)" stroke-width="2.5"/>
+      <rect x="7" y="18" width="6" height="3" rx="1" fill="url(#gpay)" opacity="0.7"/>
+      <defs><linearGradient id="gpay" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div>
+      <div class="how-title">Payez-le directement</div>
+      <div class="how-desc">Réglez le photographe directement par MTN MoMo ou Airtel Money. FotoCongo ne prend aucune commission.</div>
+    </div>
+    <div class="how-card anim-fade anim-d4">
+      <div class="how-num">04</div>
+      <div class="how-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect x="3" y="9" width="26" height="18" rx="3" stroke="url(#gc)" stroke-width="2.5" fill="none"/>
+      <circle cx="16" cy="18" r="5" stroke="url(#gc)" stroke-width="2" fill="none"/>
+      <rect x="11" y="5" width="10" height="5" rx="2" stroke="url(#gc)" stroke-width="2" fill="none"/>
+      <circle cx="24" cy="13" r="1.5" fill="url(#gc)"/>
+      <defs><linearGradient id="gc" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0066FF"/><stop offset="100%" stop-color="#00D4CC"/></linearGradient></defs>
+    </svg></div>
+      <div class="how-title">Recevez vos photos</div>
+      <div class="how-desc">Photos retouchées livrées sous 48-72h. Laissez un avis pour aider la communauté.</div>
+    </div>
+  </div>
+</section>
+
+<!-- PAIEMENT (version non obligatoire) -->
+<section id="paiement" class="payment-section">
+  <div class="pay-wrap">
+    <div class="pay-card">
+      <div class="pay-label">💡 Comment fonctionne le paiement</div>
+
+      <!-- POUR LES CLIENTS -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:0.78rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">👤 Pour les clients</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+            <span style="font-size:1.4rem">1️⃣</span>
+            <div style="font-size:0.83rem;color:var(--text-secondary)">Trouvez votre photographe et contactez-le</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+            <span style="font-size:1.4rem">2️⃣</span>
+            <div style="font-size:0.83rem;color:var(--text-secondary)">Négociez le tarif et la date directement avec lui</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+            <span style="font-size:1.4rem">3️⃣</span>
+            <div style="font-size:0.83rem;color:var(--text-secondary)">Payez <strong style="color:var(--accent)">directement</strong> le photographe par MTN MoMo ou Airtel Money</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- POUR LES PHOTOGRAPHES (boost optionnel) -->
+      <div style="padding-top:18px;border-top:1px solid var(--border)">
+        <div style="font-size:0.78rem;font-weight:800;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📸 Boost optionnel pour photographes</div>
+
+        <div style="background:var(--accent-dim);border:1px solid var(--border-hover);border-radius:12px;padding:16px;margin-bottom:14px">
+          <div style="font-size:0.9rem;font-weight:700;margin-bottom:6px;color:var(--accent)">⭐ Visibilité maximale</div>
+          <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6">
+            Pour <strong>2 000 FCFA/mois</strong>, votre profil apparaît en tête des recherches et bénéficie du badge "Photographe Pro".<br>
+            <span style="font-size:0.75rem;color:var(--text-muted)">Le compte reste actif même sans ce boost.</span>
+          </div>
+        </div>
+
+        <!-- CHOIX OPÉRATEUR (pour ceux qui veulent payer) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <div id="btn-mtn" onclick="selectOperateur('mtn')" style="padding:14px;border-radius:12px;background:var(--bg-secondary);border:2px solid var(--border);cursor:pointer;text-align:center;transition:all 0.2s">
+            <div style="font-size:1.5rem">🟡</div>
+            <div style="font-size:0.82rem;font-weight:800;color:var(--text-primary);margin-top:4px">MTN MoMo</div>
+          </div>
+          <div id="btn-airtel" onclick="selectOperateur('airtel')" style="padding:14px;border-radius:12px;background:var(--bg-secondary);border:2px solid var(--border);cursor:pointer;text-align:center;transition:all 0.2s">
+            <div style="font-size:1.5rem">🔴</div>
+            <div style="font-size:0.82rem;font-weight:800;color:var(--text-primary);margin-top:4px">Airtel Money</div>
+          </div>
+        </div>
+
+        <!-- INSTRUCTIONS PAIEMENT -->
+        <div id="instructions-momo" style="display:none;padding:16px;background:var(--accent-dim);border:1px solid var(--border-hover);border-radius:12px;margin-bottom:14px">
+          <div id="etapes-momo" style="font-size:0.83rem;color:var(--text-secondary);line-height:1.8"></div>
+        </div>
+
+        <button class="pay-btn" onclick="afficherInstructions()">💰 Activer le boost — 2 000 FCFA/mois</button>
+
+        <!-- CONFIRMATION -->
+        <div id="paiement-instructions" style="display:none;margin-top:14px">
+          <button onclick="confirmerPaiement()" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#00C896,#00AAFF);color:white;font-family:var(--font-body);font-size:0.9rem;font-weight:800;cursor:pointer">
+            ✅ J'ai effectué le paiement
+          </button>
+        </div>
+
+        <!-- MESSAGE CONFIRMATION -->
+        <div id="message-paiement"></div>
+      </div>
+    </div>
+
+    <div class="pay-text-side">
+      <div class="section-chip">🤝 Modèle transparent</div>
+      <h2 class="section-title">Simple, direct, <span class="grad">sans intermédiaire</span></h2>
+      <ul class="check-list">
+        <li><span class="check-icon">✅</span><strong>100% du tarif</strong> va directement au photographe — FotoCongo ne prend aucune commission sur les missions</li>
+        <li><span class="check-icon">✅</span>Les clients et photographes se mettent d'accord librement sur le prix</li>
+        <li><span class="check-icon">✅</span>Paiement entre particuliers via MTN MoMo ou Airtel Money</li>
+        <li><span class="check-icon">💎</span>Le boost <strong>optionnel à 2 000 FCFA/mois</strong> améliore la visibilité du photographe</li>
+        <li><span class="check-icon">🔒</span>Vos coordonnées sont protégées — visibles uniquement aux membres connectés</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- MODAL CONTACT PHOTOGRAPHE -->
+<div id="contact-modal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:20px" onclick="if(event.target.id==='contact-modal')this.style.display='none'">
+  <div style="background:var(--bg-card);border-radius:20px;border:1px solid var(--border-hover);padding:36px;width:100%;max-width:400px;text-align:center">
+    <div style="font-size:2.5rem;margin-bottom:12px">📸</div>
+    <div style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;margin-bottom:6px" id="contact-modal-name">Photographe</div>
+    <div style="font-size:0.83rem;color:var(--text-muted);margin-bottom:24px">Contactez ce photographe directement</div>
+    <div style="background:var(--accent-dim);border:1px solid var(--border-hover);border-radius:12px;padding:16px;margin-bottom:20px">
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Numéro Mobile Money</div>
+      <div style="font-size:1.2rem;font-weight:800;color:var(--accent)" id="contact-modal-tel">—</div>
+    </div>
+    <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6;margin-bottom:20px">
+      📱 Contactez ce photographe via <strong>WhatsApp ou appel</strong> pour discuter de votre projet et fixer le tarif. Le paiement se fait <strong>directement entre vous</strong>.
+    </div>
+    <button onclick="document.getElementById('contact-modal').style.display='none'" class="pay-btn">Fermer</button>
+  </div>
+</div>
+
+<!-- TARIFS (gratuits pour tous) -->
+<section id="tarifs" class="pricing-section">
+  <div style="text-align:center;margin-bottom:52px">
+    <div class="section-chip" style="margin:0 auto 14px">💎 Nos offres</div>
+    <h2 class="section-title" style="margin:0 auto;text-align:center">Abonnement <span class="grad">photographe</span></h2>
+    <p style="color:var(--text-secondary);margin-top:12px;font-size:0.88rem">Rejoignez FotoCongo et recevez des clients. <strong style="color:var(--accent)">Inscription gratuite pour tous.</strong></p>
+  </div>
+  <div class="pricing-grid">
+
+    <!-- CLIENTS : GRATUIT -->
+    <div class="price-card">
+      <div class="price-tier">👤 Client</div>
+      <div class="price-amount">0 <span>FCFA</span></div>
+      <div class="price-desc">Inscription gratuite — accès complet</div>
+      <ul class="price-features">
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Parcourir tous les photographes</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Contacter les photographes</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Payer directement le photographe</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Laisser des avis</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Aucune commission prélevée</li>
+      </ul>
+      <button class="price-cta price-cta-outline" onclick="openModal('signup')">S'inscrire gratuitement</button>
+    </div>
+
+    <!-- PHOTOGRAPHE PRO (gratuit + boost optionnel) -->
+    <div class="price-card featured">
+      <div class="price-badge">⭐ Pour les photographes</div>
+      <div class="price-tier">📸 Photographe Pro</div>
+      <div class="price-amount">0 <span>FCFA</span></div>
+      <div class="price-desc">Inscription gratuite, profil actif sans paiement</div>
+      <ul class="price-features">
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Profil public visible par tous</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Portfolio photos illimité</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Clients vous contactent directement</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> <strong>0% de commission</strong> sur vos missions</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Boost optionnel à <strong>2 000 FCFA/mois</strong> (visibilité + badge)</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Vous gardez 100% de vos revenus</li>
+      </ul>
+      <button class="price-cta price-cta-grad" onclick="openModal('signup')">Rejoindre gratuitement</button>
+    </div>
+
+    <!-- STUDIO -->
+    <div class="price-card">
+      <div class="price-tier">🏢 Studio / Agence</div>
+      <div class="price-amount">0 <span>FCFA</span></div>
+      <div class="price-desc">Inscription gratuite, boost multiple</div>
+      <ul class="price-features">
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Jusqu'à 5 photographes</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Page studio dédiée</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Mise en avant prioritaire (boost à partir de 5 000 FCFA)</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> <strong>0% de commission</strong> sur les missions</li>
+        <li><span class="feat-y"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00C896" stroke-width="2.5">
+      <polyline points="20,6 9,17 4,12"/>
+    </svg></span> Support prioritaire</li>
+      </ul>
+      <button class="price-cta price-cta-outline" onclick="openModal('signup')">Créer un studio</button>
+    </div>
+
+  </div>
+
+  <!-- NOTE TRANSPARENCE -->
+  <div style="margin-top:40px;padding:24px;background:var(--cyan-dim);border:1px solid rgba(0,212,204,0.25);border-radius:16px;text-align:center;max-width:700px;margin-left:auto;margin-right:auto">
+    <div style="font-size:1.3rem;margin-bottom:10px">💡</div>
+    <div style="font-weight:700;font-size:1rem;margin-bottom:8px;color:var(--text-primary)">Notre modèle est 100% transparent</div>
+    <div style="font-size:0.85rem;color:var(--text-secondary);line-height:1.7">
+      Inscription <strong style="color:var(--cyan)">gratuite</strong> pour tous · Les photographes peuvent activer un <strong style="color:var(--accent)">boost optionnel à 2 000 FCFA/mois</strong> pour plus de visibilité.<br>
+      Les paiements entre clients et photographes sont <strong style="color:var(--accent)">directs et privés</strong> — FotoCongo ne prend aucune commission sur les missions.
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER (avec sections légales) -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-logo">FotoCongo</div>
+      <div class="footer-desc">La plateforme qui connecte les meilleurs photographes du Congo Brazzaville avec leurs clients depuis 2025.</div>
+    </div>
+    <div class="footer-col">
+      <h4>Plateforme</h4>
+      <a href="#">Trouver un photographe</a>
+      <a href="#">Devenir photographe</a>
+      <a href="#comment">Comment ça marche</a>
+      <a href="#tarifs">Tarifs</a>
+    </div>
+    <div class="footer-col">
+      <h4>Juridique & KYC</h4>
+      <a href="#" onclick="ouvrirSectionLegale('confidentialite')">🔒 Politique de confidentialité</a>
+      <a href="#" onclick="ouvrirSectionLegale('cgv')">📜 Termes & Conditions</a>
+      <a href="#" onclick="ouvrirSectionLegale('kyc')">🆔 KYC - Vérification d'identité</a>
+    </div>
+    <div class="footer-col">
+      <h4>Support</h4>
+      <a href="#">Centre d'aide</a>
+      <a href="/cdn-cgi/l/email-protection#e3859792928d9096a3858c978c808c8d848ccd808c8e">Nous contacter</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 FotoCongo · Tous droits réservés · Congo Brazzaville 🇨🇬</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:0.75rem;color:var(--text-muted)">Thème</span>
+      <button onclick="toggleTheme()"
+        style="width:42px;height:22px;border-radius:11px;border:none;cursor:pointer;
+               position:relative;background:var(--toggle-bg);transition:background 0.3s">
+        <span style="position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;
+                     background:var(--grad-sunset);transition:transform 0.3s;font-size:10px;
+                     display:flex;align-items:center;justify-content:center" id="footer-knob">🌙</span>
+      </button>
+    </div>
+  </div>
+</footer>
+
+<!-- MODAL SECTIONS LÉGALES -->
+<div id="legal-modal" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg-card);border:1px solid var(--border-hover);border-radius:20px;width:100%;max-width:600px;max-height:80vh;overflow-y:auto;padding:30px;position:relative">
+    <button onclick="fermerLegalModal()" style="position:absolute;top:15px;right:15px;background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer">✕</button>
+    <div id="legal-content"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Connexion</button>
+      <button class="modal-tab" id="tab-signup" onclick="switchTab('signup')">Inscription</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════ THÈME SOMBRE/CLAIR ════════════════
+function toggleTheme() {
+  const html  = document.documentElement;
+  const knob  = document.getElementById('theme-knob');
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  const next  = isDark ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  try { localStorage.setItem('fc-theme', next); } catch(e) {}
+  if (knob) {
+    knob.textContent = next === 'dark' ? '🌙' : '☀️';
+    knob.style.transform = next === 'light' ? 'translateX(20px)' : 'translateX(0)';
+  }
+}
+// Appliquer thème sauvegardé au chargement
+(function() {
+  let saved = 'dark';
+  try { saved = localStorage.getItem('fc-theme') || 'dark'; } catch(e) {}
+  document.documentElement.setAttribute('data-theme', saved);
+  document.addEventListener('DOMContentLoaded', function() {
+    const knob = document.getElementById('theme-knob');
+    if (knob && saved === 'light') {
+      knob.textContent = '☀️';
+      knob.style.transform = 'translateX(20px)';
+    }
+  });
+})();
+
+// ════════════════ SECTIONS LÉGALES ════════════════
+function ouvrirSectionLegale(type) {
+  let titre = '', contenu = '';
+  if (type === 'confidentialite') {
+    titre = '🔒 Politique de confidentialité';
+    contenu = `
+      <p style="margin-bottom:12px;color:var(--text-secondary);font-size:0.88rem">Dernière mise à jour : 2025</p>
+      <p style="margin-bottom:16px;color:var(--text-primary);line-height:1.6">Chez FotoCongo, la protection de vos données est essentielle. Nous collectons uniquement les informations nécessaires à votre inscription (nom, email, ville, numéro de téléphone) et à la mise en relation avec les photographes. Vos coordonnées ne sont visibles que par les membres connectés. Aucune donnée n’est revendue à des tiers.</p>
+      <p style="margin-bottom:8px;font-weight:700">Cookies :</p>
+      <p style="color:var(--text-secondary);font-size:0.85rem">Nous utilisons des cookies pour améliorer votre expérience et mémoriser vos préférences de thème. Vous pouvez les désactiver dans votre navigateur.</p>
+    `;
+  } else if (type === 'cgv') {
+    titre = '📜 Termes & Conditions';
+    contenu = `
+      <p style="margin-bottom:12px;color:var(--text-secondary);font-size:0.88rem">Conditions d'utilisation de la plateforme FotoCongo</p>
+      <p style="margin-bottom:16px;color:var(--text-primary);line-height:1.6"><strong>1. Inscription gratuite</strong><br>L'inscription est gratuite pour tous. Les photographes peuvent activer un boost payant (2 000 FCFA/mois) pour améliorer leur visibilité, mais cela reste optionnel.</p>
+      <p style="margin-bottom:16px;color:var(--text-primary);line-height:1.6"><strong>2. Paiements</strong><br>Les transactions financières entre clients et photographes sont directes. FotoCongo n'intervient pas et ne prélève aucune commission.</p>
+      <p style="margin-bottom:16px;color:var(--text-primary);line-height:1.6"><strong>3. Responsabilités</strong><br>FotoCongo est une plateforme de mise en relation. Nous ne sommes pas responsables de la qualité des prestations ni des litiges entre utilisateurs.</p>
+    `;
+  } else if (type === 'kyc') {
+    titre = '🆔 KYC - Vérification d\'identité';
+    contenu = `
+      <p style="margin-bottom:12px;color:var(--text-secondary);font-size:0.88rem">Know Your Customer — pour la confiance et la sécurité</p>
+      <p style="margin-bottom:16px;color:var(--text-primary);line-height:1.6">Pour garantir un environnement de confiance, nous recommandons aux photographes de fournir une pièce d'identité (CNI, passeport) lors de l'inscription. Ces documents sont stockés de manière sécurisée et ne sont pas partagés publiquement. La vérification d'identité permet d'obtenir le badge "Vérifié" sur le profil.</p>
+      <p style="margin-bottom:16px;color:var(--text-primary);line-height:1.6"><strong>Comment faire ?</strong><br>Après connexion, rendez-vous dans votre compte → "Vérifier mon identité" et téléchargez une copie de votre pièce d'identité. Le traitement prend moins de 24h.</p>
+    `;
+  }
+  document.getElementById('legal-content').innerHTML = `<h2 style="font-family:var(--font-display);font-size:1.8rem;margin-bottom:20px">${titre}</h2>${contenu}`;
+  document.getElementById('legal-modal').style.display = 'flex';
+}
+function fermerLegalModal() {
+  document.getElementById('legal-modal').style.display = 'none';
+}
+
+// ════════════════ PAIEMENT MOBILE MONEY ════════════════
+const NUMERO_MTN    = "06 979 59 01";   // Ton vrai numéro MTN MoMo
+const NUMERO_AIRTEL = "04 476 34 37";   // Ton vrai numéro Airtel Money
+
+let operateurSelectionne = null;
+
+function selectOperateur(op) {
+  operateurSelectionne = op;
+  const btnMtn    = document.getElementById('btn-mtn');
+  const btnAirtel = document.getElementById('btn-airtel');
+  const accent    = 'rgba(0,170,255,0.2)';
+  const bord      = 'rgba(0,170,255,0.6)';
+
+  btnMtn.style.border    = op === 'mtn'    ? `2px solid ${bord}` : '2px solid var(--border)';
+  btnMtn.style.background= op === 'mtn'    ? accent : 'var(--bg-secondary)';
+  btnAirtel.style.border = op === 'airtel' ? `2px solid ${bord}` : '2px solid var(--border)';
+  btnAirtel.style.background= op === 'airtel' ? accent : 'var(--bg-secondary)';
+}
+
+function afficherInstructions() {
+  if (!operateurSelectionne) {
+    showToast("⚠️ Choisissez d'abord MTN MoMo ou Airtel Money");
+    return;
+  }
+  const numero = operateurSelectionne === 'mtn' ? NUMERO_MTN : NUMERO_AIRTEL;
+  const nom    = operateurSelectionne === 'mtn' ? 'MTN MoMo' : 'Airtel Money';
+  const emoji  = operateurSelectionne === 'mtn' ? '🟡' : '🔴';
+
+  document.getElementById('etapes-momo').innerHTML = `
+    <div style="font-weight:800;color:var(--accent);margin-bottom:10px">${emoji} Instructions ${nom}</div>
+    <div>1️⃣ Ouvre ton application <strong>${nom}</strong></div>
+    <div>2️⃣ Choisis <strong>"Payer"</strong> ou <strong>"Envoyer"</strong></div>
+    <div>3️⃣ Entre le numéro : <strong style="font-size:1.1rem;color:var(--accent)">${numero}</strong></div>
+    <div>4️⃣ Montant : <strong style="color:var(--accent)">2 000 FCFA</strong></div>
+    <div>5️⃣ Motif : <strong>Boost FotoCongo + ton email</strong></div>
+  `;
+  document.getElementById('instructions-momo').style.display = 'block';
+  document.getElementById('paiement-instructions').style.display = 'block';
+}
+
+function confirmerPaiement() {
+  const user = typeof auth !== 'undefined' ? auth.currentUser : null;
+  if (!user) {
+    showToast("⚠️ Connectez-vous d'abord pour confirmer");
+    openModal('login');
+    return;
+  }
+  // Enregistrer dans Firebase si disponible
+  if (typeof db !== 'undefined' && typeof addDoc !== 'undefined') {
+    addDoc(collection(db, "demandes_boost"), {
+      userId: user.uid,
+      email: user.email,
+      operateur: operateurSelectionne || 'mtn',
+      montant: 2000,
+      statut: 'en_attente',
+      createdAt: serverTimestamp()
+    }).catch(() => {});
+  }
+  document.getElementById('message-paiement').innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(0,200,150,0.15),rgba(0,170,255,0.1));
+                border:1px solid rgba(0,200,150,0.4);border-radius:12px;
+                padding:16px;margin-top:14px;text-align:center">
+      <div style="font-size:1.5rem;margin-bottom:8px">🎉</div>
+      <div style="font-weight:800;color:#00C896;font-size:0.95rem">Demande de boost enregistrée !</div>
+      <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:6px;line-height:1.6">
+        Votre profil sera boosté dans les <strong>24h</strong><br>
+        après réception de votre paiement. Merci !
+      </div>
+    </div>`;
+  document.getElementById('paiement-instructions').style.display = 'none';
+  document.getElementById('instructions-momo').style.display = 'none';
+  showToast("✅ Demande de boost enregistrée ! Activation sous 24h.");
+}
+
+// ════════════════ RESTE DES FONCTIONS ════════════════
+
+// ════════════════ CARTES PHOTO ════════════════
+function getDemodCards() {
+  const demos = [
+    {nom:"Arsène Mavoungou", ville:"Brazzaville", spec:"Mariage & Famille", cover:"c-sunset", emoji:"MARIAGE", note:"5.0", avis:48, prix:"50 000", type:"PRO", init:"A"},
+    {nom:"Cynthia Nzaou",    ville:"Pointe-Noire", spec:"Portrait & Mode",  cover:"c-ocean",  emoji:"PORTRAIT", note:"4.9", avis:32, prix:"35 000", type:"PRO", init:"C"},
+    {nom:"Patrick Moukoko",  ville:"Brazzaville",  spec:"Événements",       cover:"c-rose",   emoji:"EVENT", note:"4.7", avis:61, prix:"40 000", type:"PRO", init:"P"},
+    {nom:"Laeticia Bongo",   ville:"Brazzaville",  spec:"Corporate",        cover:"c-velvet", emoji:"🏢", note:"4.8", avis:19, prix:"45 000", type:"PRO", init:"L"},
+    {nom:"Fiston Ngoma",     ville:"Pointe-Noire", spec:"Nature & Voyage",  cover:"c-emerald",emoji:"🌿", note:"4.6", avis:27, prix:"30 000", type:"AMATeur", init:"F"},
+    {nom:"Gloria Kimpa",     ville:"Brazzaville",  spec:"Mariage",          cover:"c-fire",   emoji:"MODE", note:"4.9", avis:43, prix:"55 000", type:"PRO", init:"G"},
+  ];
+  return demos.map(p => makeCard(null, p)).join('');
+}
+
+function makeCard(id, p) {
+  return `
+  <div class="photog-card">
+    <div class="photog-cover ${p.cover||'c-sunset'}">
+      <span>${p.emoji||'📸'}</span>
+      <div class="${p.type==='PRO'?'badge-pro':'badge-ama'}">${p.type||'PRO'}</div>
+    </div>
+    <div class="photog-info">
+      <div class="photog-top">
+        <div class="avatar">${(p.nom||'?')[0]}</div>
+        <div>
+          <div class="photog-name">${p.nom}</div>
+          <div class="photog-city">📍 ${p.ville}</div>
+        </div>
+      </div>
+      <span class="photog-spec">${p.spec||p.specialite||'Photographe'}</span>
+      <div class="photog-meta">
+        <div class="stars">★★★★★ <span>${p.note||'5.0'} (${p.avis||0} avis)</span></div>
+        <div class="price">${p.prix||'—'} FCFA <small>/séance</small></div>
+      </div>
+      <div class="photog-btn-wrap">
+      <button class="photog-btn" onclick="ouvrirProfilPhotographe('${id||''}','${p.nom}','${p.ville}','${p.spec||p.specialite||'Photographe'}','${p.cover||'c-sunset'}','${p.tel||''}','${p.note||'5.0'}','${p.avis||0}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        Voir le profil
+      </button>
+      <button class="photog-btn-msg" onclick="ouvrirChat('${id||''}','${p.nom}','${(p.nom||'?')[0]}')" title="Envoyer un message">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </button>
+    </div>
+    </div>
+  </div>`;
+}
+
+// ════════════════ MODAL ════════════════
+let selectedRole = 'client';
+function openModal(type) { document.getElementById('modal').classList.add('open'); switchTab(type); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function closeModalOutside(e) { if(e.target.id==='modal') closeModal(); }
+
+function switchTab(type) {
+  ['login','signup'].forEach(t => document.getElementById('tab-'+t).classList.toggle('active', t===type));
+  const body = document.getElementById('modal-body');
+  if(type==='login') {
+    body.innerHTML = `
+      <div class="modal-title">Bon retour ! 👋</div>
+      <div class="modal-sub">Connectez-vous à votre compte FotoCongo</div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="l-email" type="email" placeholder="votre@email.com"/></div>
+      <div class="form-group"><label class="form-label">Mot de passe</label><input class="form-input" id="l-pwd" type="password" placeholder="••••••••"/></div>
+      <button class="submit-btn" onclick="connecter(document.getElementById('l-email').value,document.getElementById('l-pwd').value)">Se connecter</button>`;
+  } else {
+    body.innerHTML = `
+      <div class="modal-title">Rejoignez FotoCongo gratuitement 🎉</div>
+      <div class="modal-sub">Créez votre compte en 1 minute</div>
+      <div class="form-group"><label class="form-label">Vous êtes...</label>
+        <div class="role-grid">
+          <button class="role-btn active" onclick="setRole(this,'photographe')"><span class="role-icon">📸</span>Photographe</button>
+          <button class="role-btn" onclick="setRole(this,'client')"><span class="role-icon">👤</span>Client</button>
+          <button class="role-btn" onclick="setRole(this,'entreprise')"><span class="role-icon">🏢</span>Entreprise</button>
+          <button class="role-btn" onclick="setRole(this,'amateur')"><span class="role-icon">🌟</span>Photo amateur</button>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Nom complet</label><input class="form-input" id="r-nom" placeholder="Jean-Paul Moukoko"/></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="r-email" type="email" placeholder="votre@email.com"/></div>
+      <div class="form-group"><label class="form-label">Ville</label>
+        <select class="form-select" id="r-ville"><option>Brazzaville</option><option>Pointe-Noire</option><option>Dolisie</option><option>Autre</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Mot de passe</label><input class="form-input" id="r-pwd" type="password" placeholder="••••••••"/></div>
+      <button class="submit-btn" onclick="inscrire(document.getElementById('r-email').value,document.getElementById('r-pwd').value,document.getElementById('r-nom').value,document.getElementById('r-ville').value,selectedRole)">Créer mon compte gratuit</button>`;
+  }
+}
+function setRole(el, role) { document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); selectedRole=role; }
+
+function filterTab(el) { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+function selectMM(el) { document.querySelectorAll('.mm-option').forEach(m=>m.classList.remove('active')); el.classList.add('active'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Charger les cartes au démarrage
+document.getElementById('photogs-grid').innerHTML = getDemodCards();
+
+// ════════════════ ANIMATIONS SCROLL ════════════════
+(function() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('anim-visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.anim-fade,.anim-left,.anim-right,.anim-pop')
+      .forEach(el => observer.observe(el));
+
+    // Ajouter animation aux cartes photographes quand chargées
+    const grid = document.getElementById('photogs-grid');
+    if (grid) {
+      const gridObserver = new MutationObserver(() => {
+        grid.querySelectorAll('.photog-card:not(.anim-fade)').forEach((card, i) => {
+          card.classList.add('anim-fade');
+          card.style.transitionDelay = (i * 0.06) + 's';
+          setTimeout(() => observer.observe(card), 10);
+        });
+      });
+      gridObserver.observe(grid, { childList: true });
+    }
+  });
+})();
+
+// ════════════════ PROFIL PHOTOGRAPHE ════════════════
+let profilCourant = null;
+
+const PORTFOLIO_PLACEHOLDERS = [
+  { bg:'c-sunset', svg:'<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="2" y="6" width="28" height="20" rx="3" fill="white" opacity="0.6"/><circle cx="16" cy="16" r="6" fill="white" opacity="0.9"/><circle cx="16" cy="16" r="3" fill="#0066FF" opacity="0.7"/></svg>' },
+  { bg:'c-ocean',  svg:'<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="12" r="6" fill="white" opacity="0.8"/><path d="M6 26 Q6 20 16 20 Q26 20 26 26" fill="white" opacity="0.7"/></svg>' },
+  { bg:'c-rose',   svg:'<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 4 Q24 10 24 18 Q24 26 16 28 Q8 26 8 18 Q8 10 16 4Z" fill="white" opacity="0.75"/></svg>' },
+  { bg:'c-emerald',svg:'<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><polygon points="16,4 20,13 29,13 22,19 25,28 16,22 7,28 10,19 3,13 12,13" fill="white" opacity="0.8"/></svg>' },
+];
+
+function ouvrirProfilPhotographe(id, nom, ville, spec, cover, tel, note, avis) {
+  profilCourant = { id, nom, ville, spec, cover, tel, note, avis };
+
+  document.getElementById('profil-nom').textContent   = nom;
+  document.getElementById('profil-spec').textContent  = spec;
+  document.getElementById('profil-ville').textContent = ville;
+  document.getElementById('profil-note').textContent  = note;
+  document.getElementById('profil-avis').textContent  = avis;
+  document.getElementById('profil-avatar').textContent = (nom||'?')[0].toUpperCase();
+
+  // Cover couleur
+  const cover_ = document.getElementById('profil-cover');
+  cover_.className = 'profil-cover ' + (cover || 'c-sunset');
+
+  // Téléphone — visible seulement si connecté
+  const user = window._auth ? window._auth.currentUser : null;
+  const telEl = document.getElementById('profil-tel');
+  if (user && tel && tel.length > 4) {
+    telEl.textContent = tel;
+    document.getElementById('profil-btn-appel').style.display = 'flex';
+  } else if (!user) {
+    telEl.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">🔒 Connectez-vous pour voir</span>';
+    document.getElementById('profil-btn-appel').style.display = 'none';
+  } else {
+    telEl.textContent = 'Non renseigné';
+    document.getElementById('profil-btn-appel').style.display = 'none';
+  }
+
+  // Portfolio démo
+  const grid = document.getElementById('profil-portfolio');
+  grid.innerHTML = '';
+  PORTFOLIO_PLACEHOLDERS.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'portfolio-item ' + p.bg;
+    div.innerHTML = p.svg;
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.justifyContent = 'center';
+    grid.appendChild(div);
+  });
+
+  document.getElementById('profil-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function fermerProfil() {
+  document.getElementById('profil-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function appellerPhotographe() {
+  if (profilCourant && profilCourant.tel) {
+    window.location.href = 'tel:+242' + profilCourant.tel.replace(/\s/g,'');
+  }
+}
+
+function ouvrirChatDepuisProfil() {
+  if (!profilCourant) return;
+  fermerProfil();
+  setTimeout(() => ouvrirChat(profilCourant.id, profilCourant.nom, profilCourant.nom[0]), 300);
+}
+
+// ════════════════ MESSAGERIE / CHAT ════════════════
+let chatCourant = { id: null, nom: null, init: null };
+const chatMessages = {}; // { photographeId: [messages] }
+
+function ouvrirChat(photoId, nom, init) {
+  const user = window._auth ? window._auth.currentUser : null;
+  if (!user) { showToast("⚠️ Connectez-vous pour envoyer un message"); openModal('login'); return; }
+
+  chatCourant = { id: photoId, nom, init };
+  document.getElementById('chat-avatar-sm').textContent = init.toUpperCase();
+  document.getElementById('chat-nom-header').textContent = nom;
+
+  // Afficher les messages existants
+  const msgs = chatMessages[photoId] || [];
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = '<div class="msg-systeme">Début de la conversation</div>';
+
+  msgs.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'msg-wrap' + (m.moi ? ' moi' : '');
+    div.innerHTML = `<div class="msg-bulle">${m.texte}</div><div class="msg-heure">${m.heure}</div>`;
+    container.appendChild(div);
+  });
+
+  // Message d'accueil si 1ère fois
+  if (msgs.length === 0) {
+    const now = new Date();
+    const heure = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+    const msgAuto = {
+      texte: `Bonjour ! Je suis ${nom}, photographe sur FotoCongo. Comment puis-je vous aider ? 📸`,
+      moi: false, heure
+    };
+    if (!chatMessages[photoId]) chatMessages[photoId] = [];
+    chatMessages[photoId].push(msgAuto);
+    const div = document.createElement('div');
+    div.className = 'msg-wrap';
+    div.innerHTML = `<div class="msg-bulle">${msgAuto.texte}</div><div class="msg-heure">${heure}</div>`;
+    container.appendChild(div);
+  }
+
+  container.scrollTop = container.scrollHeight;
+  document.getElementById('chat-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('chat-input').focus(), 400);
+}
+
+function fermerChat() {
+  document.getElementById('chat-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function envoyerMessage() {
+  const input = document.getElementById('chat-input');
+  const texte = input.value.trim();
+  if (!texte) return;
+
+  const now   = new Date();
+  const heure = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  const msg   = { texte, moi: true, heure };
+
+  if (!chatMessages[chatCourant.id]) chatMessages[chatCourant.id] = [];
+  chatMessages[chatCourant.id].push(msg);
+
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg-wrap moi';
+  div.innerHTML = `<div class="msg-bulle">${texte}</div><div class="msg-heure">${heure}</div>`;
+  div.style.opacity = '0';
+  div.style.transform = 'translateY(8px)';
+  container.appendChild(div);
+  input.value = '';
+
+  requestAnimationFrame(() => {
+    div.style.transition = 'all 0.25s ease';
+    div.style.opacity = '1';
+    div.style.transform = 'none';
+  });
+  container.scrollTop = container.scrollHeight;
+
+  // Enregistrer dans Firebase
+  const user = window._auth ? window._auth.currentUser : null;
+  if (user && window._db) {
+    window.addDoc(window.collection(window._db, 'messages'), {
+      de: user.uid,
+      deEmail: user.email,
+      vers: chatCourant.id,
+      versNom: chatCourant.nom,
+      texte, heure,
+      createdAt: window.serverTimestamp()
+    }).catch(() => {});
+  }
+
+  // Réponse auto simulée
+  setTimeout(() => {
+    const repAuto = "Merci pour votre message ! Je vous réponds dès que possible. 📸";
+    const repMsg  = { texte: repAuto, moi: false, heure };
+    chatMessages[chatCourant.id].push(repMsg);
+    const div2 = document.createElement('div');
+    div2.className = 'msg-wrap';
+    div2.innerHTML = `<div class="msg-bulle">${repAuto}</div><div class="msg-heure">${heure}</div>`;
+    div2.style.opacity = '0';
+    container.appendChild(div2);
+    requestAnimationFrame(() => {
+      div2.style.transition = 'all 0.3s ease';
+      div2.style.opacity = '1';
+    });
+    container.scrollTop = container.scrollHeight;
+  }, 1500);
+}
+
+function ouvrirListeChats() {
+  showToast("💬 Messagerie — Cliquez sur un photographe pour discuter");
+}
+
+// ════════════════ MON COMPTE ════════════════
+function ouvrirCompte() {
+  const user = window._auth ? window._auth.currentUser : null;
+  if (!user) { openModal('login'); return; }
+
+  // Pré-remplir depuis localStorage
+  document.getElementById('compte-nom').value  = localStorage.getItem('fc-nom')   || '';
+  document.getElementById('compte-ville').value= localStorage.getItem('fc-ville') || '';
+  document.getElementById('compte-tel').value  = localStorage.getItem('fc-tel')   || '';
+
+  // Afficher portfolio si photographe
+  const role = localStorage.getItem('fc-role') || '';
+  document.getElementById('section-portfolio').style.display =
+    role === 'photographe' ? 'block' : 'none';
+
+  document.getElementById('compte-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function fermerCompte() {
+  document.getElementById('compte-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function sauvegarderCompte() {
+  const user = window._auth ? window._auth.currentUser : null;
+  if (!user) return;
+
+  const nom   = document.getElementById('compte-nom').value.trim();
+  const ville = document.getElementById('compte-ville').value.trim();
+  const tel   = document.getElementById('compte-tel').value.trim();
+
+  // Sauvegarder localement (avec protection si localStorage indisponible)
+  try {
+    if (nom)   localStorage.setItem('fc-nom', nom);
+    if (ville) localStorage.setItem('fc-ville', ville);
+    if (tel)   localStorage.setItem('fc-tel', tel);
+  } catch(e) {}
+
+  // Sauvegarder dans Firestore avec setDoc (mise à jour du document existant)
+  if (window._db && window.setDoc && window.doc) {
+    try {
+      await window.setDoc(window.doc(window._db, 'profils_publics', user.uid), {
+        userId: user.uid, nom, ville, tel,
+        updatedAt: window.serverTimestamp()
+      }, { merge: true });
+    } catch(e) {}
+  }
+
+  showToast("✅ Profil mis à jour !");
+  fermerCompte();
+}
+
+function ajouterPhoto() {
+  showToast("📸 Ajout de photos — fonctionnalité bientôt disponible !");
+}
+
+// ════════════════ MISE À JOUR NAVBAR AVEC COMPTE ════════════════
+window.updateNavbar = (u) => {
+  const el = document.getElementById('nav-btns');
+  const chatBtn = document.getElementById('nav-chat-btn');
+  if (!el) return;
+  if (u) {
+    el.innerHTML = `
+      <button class="btn-ghost-sm" onclick="ouvrirCompte()" style="display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+        ${u.email.split('@')[0]}
+      </button>
+      <button class="btn-ghost-sm" onclick="deconnecter()" style="display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Déconnexion
+      </button>`;
+    if (chatBtn) chatBtn.style.display = 'flex';
+    try { localStorage.setItem('fc-role', 'client'); } catch(e) {}
+  } else {
+    el.innerHTML = `
+      <button class="btn-ghost-sm" onclick="openModal('login')">Connexion</button>
+      <button class="btn-cta-sm" onclick="openModal('signup')">S'inscrire gratuitement</button>`;
+    if (chatBtn) chatBtn.style.display = 'none';
+  }
+};
+
+</script>
+<!-- CinetPay SDK -->
+<script src="https://cdn.cinetpay.com/seamless/main.js"></script>
+</body>
+</html>
