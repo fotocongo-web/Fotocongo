@@ -6052,6 +6052,53 @@ function _renderComptePanel(user, firestoreData) {
     <div class="form-group"><label class="form-label">✉️ Email (non modifiable)</label>
       <input class="form-input" value="${user.email}" readonly style="opacity:0.5;cursor:not-allowed;background:var(--bg-secondary)"/></div>
 
+    <!-- ══ SÉLECTEUR DE RÔLE (visible si client ou rôle manquant) ══ -->
+    ${!isCreatif ? `
+    <div style="padding:16px;background:rgba(255,170,0,0.07);border:1px solid rgba(255,170,0,0.25);border-radius:12px;margin-bottom:14px">
+      <div style="font-size:0.72rem;font-weight:800;color:#FFAA00;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🎯 Vous êtes un créatif ou un professionnel ?</div>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px">Choisissez votre rôle pour activer votre portfolio et votre profil public.</div>
+      <select class="form-select" id="compte-role-changer" onchange="changerRoleDynamique(this.value)">
+        <option value="client" ${role==='client'?'selected':''}>👤 Client (pas de profil public)</option>
+        <optgroup label="── Créatifs ──">
+          <option value="photographe" ${role==='photographe'?'selected':''}>📸 Photographe</option>
+          <option value="videographe" ${role==='videographe'?'selected':''}>🎬 Vidéographe</option>
+          <option value="realisateur" ${role==='realisateur'?'selected':''}>🎥 Réalisateur</option>
+          <option value="designer" ${role==='designer'?'selected':''}>🎨 Designer</option>
+          <option value="infographe" ${role==='infographe'?'selected':''}>🖥️ Infographe</option>
+          <option value="influenceur" ${role==='influenceur'?'selected':''}>📱 Influenceur</option>
+          <option value="mc" ${role==='mc'?'selected':''}>🎤 MC / Animateur</option>
+          <option value="manequin" ${role==='manequin'?'selected':''}>👗 Mannequin</option>
+          <option value="dj" ${role==='dj'?'selected':''}>🎧 DJ</option>
+          <option value="humoriste" ${role==='humoriste'?'selected':''}>😂 Humoriste</option>
+          <option value="sportif" ${role==='sportif'?'selected':''}>⚽ Sportif</option>
+          <option value="hotesse" ${role==='hotesse'?'selected':''}>💼 Hôtesse</option>
+        </optgroup>
+        <optgroup label="── Professionnels ──">
+          <option value="entrepreneur" ${role==='entrepreneur'?'selected':''}>🏠 Entrepreneur</option>
+          <option value="enseignant" ${role==='enseignant'?'selected':''}>📚 Enseignant</option>
+          <option value="informatique" ${role==='informatique'?'selected':''}>💻 Informatique</option>
+          <option value="vendeur" ${role==='vendeur'?'selected':''}>🛒 Vendeur</option>
+          <option value="coiffeur" ${role==='coiffeur'?'selected':''}>✂️ Coiffeur</option>
+          <option value="chauffeur" ${role==='chauffeur'?'selected':''}>🚗 Chauffeur</option>
+          <option value="menuisier" ${role==='menuisier'?'selected':''}>🔨 Menuisier</option>
+          <option value="electricien" ${role==='electricien'?'selected':''}>⚡ Électricien</option>
+          <option value="plombier" ${role==='plombier'?'selected':''}>🔧 Plombier</option>
+          <option value="macon" ${role==='macon'?'selected':''}>🧱 Maçon</option>
+          <option value="couturier" ${role==='couturier'?'selected':''}>🧵 Couturier</option>
+          <option value="cuisinier" ${role==='cuisinier'?'selected':''}>👨‍🍳 Cuisinier</option>
+          <option value="mecanicien" ${role==='mecanicien'?'selected':''}>🔩 Mécanicien</option>
+          <option value="soudeur" ${role==='soudeur'?'selected':''}>🔥 Soudeur</option>
+          <option value="peintre" ${role==='peintre'?'selected':''}>🖌️ Peintre</option>
+          <option value="manager" ${role==='manager'?'selected':''}>👔 Manager</option>
+          <option value="ingenieur" ${role==='ingenieur'?'selected':''}>⚙️ Ingénieur</option>
+          <option value="architecte" ${role==='architecte'?'selected':''}>🏛️ Architecte</option>
+          <option value="agriculteur" ${role==='agriculteur'?'selected':''}>🌾 Agriculteur</option>
+          <option value="closer" ${role==='closer'?'selected':''}>🤝 Closer</option>
+        </optgroup>
+      </select>
+      <div style="font-size:0.73rem;color:#888;margin-top:6px">Le changement de rôle active les champs portfolio/vidéo ci-dessous après sauvegarde.</div>
+    </div>` : ''}
+
     ${isCreatif ? `
     <!-- ══ SECTION CRÉATIF ══ -->
     <div style="padding:18px;background:var(--accent-dim);border:1px solid var(--border-hover);border-radius:14px;margin-bottom:14px">
@@ -6224,6 +6271,12 @@ function fermerCompte() {
   document.body.style.overflow = '';
 }
 
+function changerRoleDynamique(nouveauRole) {
+  if (!nouveauRole || nouveauRole === 'client') return;
+  try { localStorage.setItem('fc-role', nouveauRole); } catch(e) {}
+  showToast('🎯 Rôle sélectionné : ' + nouveauRole + ' — Cliquez sur Sauvegarder pour confirmer');
+}
+
 async function corrigerRoleManquant() {
   const user = window._auth ? window._auth.currentUser : null;
   if (!user || !window._db) return;
@@ -6320,7 +6373,13 @@ async function sauvegarderCompte() {
   // ── 2. Sauvegarder dans Firestore (via fonctions déjà exposées) ──
   if (window._db && window.serverTimestamp) {
     try {
-      const roleActuel = localStorage.getItem('fc-role') || 'client';
+      const roleSelector = document.getElementById('compte-role-changer');
+      const roleActuel = (roleSelector && roleSelector.value && roleSelector.value !== 'client')
+        ? roleSelector.value
+        : (localStorage.getItem('fc-role') || 'client');
+      if (roleSelector && roleSelector.value && roleSelector.value !== 'client') {
+        try { localStorage.setItem('fc-role', roleSelector.value); } catch(e) {}
+      }
       const payload = {
         pseudo, nom, ville, tel, whatsapp,
         role: roleActuel,
