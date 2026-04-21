@@ -5944,6 +5944,19 @@ function ouvrirCompte() {
         // Re-rendre avec les données Firestore uniquement si le panneau est encore ouvert
         if (document.getElementById('compte-overlay').classList.contains('open')) {
           _renderComptePanel(user, firestoreData);
+          // ── Charger les images portfolio existantes ──
+          if (firestoreData.portfolio && firestoreData.portfolio.length > 0) {
+            const preview = document.getElementById('portfolio-preview');
+            if (preview) {
+              preview.innerHTML = '';
+              firestoreData.portfolio.forEach(src => {
+                const div = document.createElement('div');
+                div.style.cssText = 'aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--bg-card2)';
+                div.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover"/>`;
+                preview.appendChild(div);
+              });
+            }
+          }
         }
       }
     } catch(e) { console.warn('Firestore read:', e.message); }
@@ -6413,6 +6426,13 @@ async function sauvegarderCompte() {
   // Récupérer l'avatar (déjà sauvegardé en localStorage par previewAvatar)
   const avatar = localStorage.getItem('fc-avatar') || '';
 
+  // ── Récupérer les images portfolio depuis la prévisualisation ──
+  const portfolioImgs = [];
+  const previewEls = document.querySelectorAll('#portfolio-preview img');
+  previewEls.forEach(img => {
+    if (img.src && img.src.startsWith('data:')) portfolioImgs.push(img.src);
+  });
+
   // Valider le lien vidéo si renseigné
   if (videoRaw && !videoEmbed) {
     showToast('⚠️ Lien vidéo invalide — utilisez un lien YouTube valide');
@@ -6424,8 +6444,9 @@ async function sauvegarderCompte() {
   Object.entries(toSave).forEach(([k, v]) => {
     if (v) try { localStorage.setItem('fc-' + k, v); } catch(e) {}
   });
-  if (videoRaw)   try { localStorage.setItem('fc-video',  videoRaw);  } catch(e) {}
-  if (avatar)     try { localStorage.setItem('fc-avatar', avatar);    } catch(e) {}
+  if (videoRaw)       try { localStorage.setItem('fc-video',  videoRaw);  } catch(e) {}
+  if (avatar)         try { localStorage.setItem('fc-avatar', avatar);    } catch(e) {}
+  if (portfolioImgs.length > 0) try { localStorage.setItem('fc-portfolio', JSON.stringify(portfolioImgs)); } catch(e) {}
 
   // ── 2. Sauvegarder dans Firestore ──────────────────────────────
   const roleSelector = document.getElementById('compte-role-changer');
@@ -6452,12 +6473,18 @@ async function sauvegarderCompte() {
       if (reseau)     payload.reseau    = reseau;
       if (followers)  payload.followers = followers;
       if (avatar && avatar.length < 500000) payload.avatar = avatar;
+      if (portfolioImgs.length > 0) payload.portfolio = portfolioImgs;
 
       // Utiliser les fonctions déjà exposées sur window (pas de re-import)
       const _setDoc = window.setDoc || window._setDoc;
       const _doc    = window.doc    || window._doc;
       if (!_setDoc || !_doc) throw new Error('Firestore non initialisé');
-      await _setDoc(_doc(window._db, 'utilisateurs', user.uid), payload, { merge: true });
+
+      // Timeout 8s pour éviter le blocage infini
+      await Promise.race([
+        _setDoc(_doc(window._db, 'utilisateurs', user.uid), payload, { merge: true }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Délai dépassé — réessayez')), 8000))
+      ]);
       firestoreOk = true;
     } catch(e) {
       console.error('Firestore save error:', e.message);
@@ -8910,48 +8937,35 @@ function filtrerTalents(q) {
   const grid = document.getElementById('photogs-grid');
   if (!grid) return;
 
-  // 1. Filtre immédiat sur les cards déjà affichées (réponse instantanée)
-  const cards = grid.querySelectorAll('.photog-card');
+  // Réinitialiser si vide
   if (!terme) {
-    cards.forEach(c => c.style.display = '');
-    // Recharger le métier actif pour tout afficher
     if (typeof chargerPhotographes === 'function') chargerPhotographes(window.metierActif || 'photographe');
     return;
   }
-  let nbVisible = 0;
-  cards.forEach(card => {
-    const text = (card.textContent || '').toLowerCase();
-    const visible = text.includes(terme);
-    card.style.display = visible ? '' : 'none';
-    if (visible) nbVisible++;
-  });
 
-  // 2. Si aucun résultat local → recherche Firestore par ville (debounce 400ms)
-  if (nbVisible === 0 && terme.length >= 3) {
-    clearTimeout(_rechercheTimer);
+  // Debounce 400ms → recherche Firestore directe (évite les faux positifs des cards démo)
+  clearTimeout(_rechercheTimer);
+  _rechercheTimer = setTimeout(async () => {
     grid.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">🔍 Recherche en cours…</div>';
-    _rechercheTimer = setTimeout(async () => {
-      try {
-        const db = window._db;
-        if (!db) return;
-        const { getDocs, collection, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-        // Recherche par ville
-        const snap = await getDocs(collection(db, 'utilisateurs'));
-        let html = '';
-        snap.forEach(d => {
-          const data = d.data();
-          if (data.bloque || data.visible === false) return;
-          const champs = [data.nom, data.pseudo, data.ville, data.spec, data.role].join(' ').toLowerCase();
-          if (champs.includes(terme)) {
-            html += (typeof makeCard === 'function') ? makeCard(d.id, data, data.role || window.metierActif || 'photographe', data.video || '') : '';
-          }
-        });
-        grid.innerHTML = html || `<div style="color:var(--text-muted);padding:40px;text-align:center">😕 Aucun résultat pour "<strong>${q}</strong>"</div>`;
-      } catch(e) {
-        grid.innerHTML = `<div style="color:var(--text-muted);padding:20px;text-align:center">😕 Aucun résultat pour "${q}"</div>`;
-      }
-    }, 400);
-  }
+    try {
+      const db = window._db;
+      if (!db) return;
+      const snap = await window._getDocs(window._collection(db, 'utilisateurs'));
+      let html = '';
+      snap.forEach(d => {
+        const data = d.data();
+        if (!data.nom && !data.pseudo) return;
+        if (data.bloque || data.visible === false) return;
+        const champs = [data.nom, data.pseudo, data.ville, data.spec, data.role].join(' ').toLowerCase();
+        if (champs.includes(terme)) {
+          html += (typeof makeCard === 'function') ? makeCard(d.id, data, data.role || window.metierActif || 'photographe', data.video || '') : '';
+        }
+      });
+      grid.innerHTML = html || `<div style="color:var(--text-muted);padding:40px;text-align:center">😕 Aucun résultat pour "<strong>${q}</strong>"</div>`;
+    } catch(e) {
+      grid.innerHTML = `<div style="color:var(--text-muted);padding:20px;text-align:center">😕 Erreur de recherche — réessayez</div>`;
+    }
+  }, 400);
 }
 function clearTalentSearch() {
   const input = document.getElementById('talent-search-input');
