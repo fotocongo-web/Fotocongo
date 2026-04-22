@@ -60,7 +60,7 @@
       resetBtn();
       closeModal();
       if (typeof updateNavbar === 'function') updateNavbar(cred.user);
-      showToast("🎉 Bienvenue sur Wokihub, " + (pseudo || nom) + " !");
+      showToast("🎉 Bienvenue sur Wokihub, " + (pseudo || nom) + " ! Activez votre compte (1 000 FCFA).");
 
       // Sauvegarder localStorage immédiatement
       try { localStorage.setItem('fc-nom', nom); } catch(e){}
@@ -69,23 +69,31 @@
       try { localStorage.setItem('fc-tel', tel || ''); } catch(e){}
       try { localStorage.setItem('fc-role', role); } catch(e){}
 
-      // Sauvegarder Firestore EN ARRIÈRE-PLAN (sans bloquer l'interface)
+      // Compte créé mais invisible jusqu'au paiement d'inscription (1 000 FCFA)
+      const rolesCreatifs = ['photographe','videographe','realisateur','designer','infographe',
+        'influenceur','mc','manequin','dj','sportif','humoriste','hotesse','entrepreneur',
+        'enseignant','informatique','vendeur','coiffeur','chauffeur','menuisier','electricien',
+        'plombier','macon','couturier','cuisinier','mecanicien','soudeur','peintre','bijoutier',
+        'cordonnier','boulanger','jardinier','gardien','agent_immobilier','manager','ingenieur',
+        'architecte','agriculteur','pecheur','closer'];
+      const isTalent = rolesCreatifs.includes(role);
+
       setDoc(doc(db, "utilisateurs", cred.user.uid), {
         nom, ville, role, email,
         pseudo: pseudo || nom,
         tel: tel || '',
-        abonnementActif: true,
+        abonnementActif: false,
         abonnementExpire: null,
-        valide: true,
+        inscriptionPayee: false,   // doit payer 1 000 FCFA pour être visible
+        isTalent,
+        valide: false,
         bloque: false,
-        visible: true,
+        visible: false,            // invisible jusqu'au paiement
         createdAt: serverTimestamp()
       }).catch(e => console.warn('Firestore (non bloquant):', e.message));
 
-      // Charger les talents après fermeture
-      setTimeout(() => {
-        if (typeof chargerPhotographes === 'function') chargerPhotographes();
-      }, 500);
+      // Afficher le modal de paiement d'inscription après 1s
+      setTimeout(() => wkAfficherPaiementInscription(cred.user, nom, role, isTalent), 1000);
 
       // Parrainage et notification en arrière-plan
       if (typeof wkEnregistrerParrainage === 'function') wkEnregistrerParrainage(cred.user.uid, email);
@@ -101,6 +109,158 @@
       };
       showToast(msgs[e.code] || '❌ Erreur : ' + (e.message || 'Réessayez'));
       resetBtn();
+    }
+  };
+
+  // ════════════════════════════════════════════════════════════
+  // MODULE : PAIEMENT D'INSCRIPTION (1 000 FCFA — tous les membres)
+  // ════════════════════════════════════════════════════════════
+  window.wkAfficherPaiementInscription = function(user, nom, role, isTalent) {
+    const overlay = document.createElement('div');
+    overlay.id = 'wk-paiement-inscription-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:#0D1117;border:2px solid #00C896;border-radius:16px;max-width:480px;width:100%;padding:28px;font-family:inherit;color:#ddd;position:relative">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:2.5rem;margin-bottom:8px">💳</div>
+          <h2 style="color:#00C896;margin:0;font-size:1.3rem">Activation du compte</h2>
+          <div style="color:#888;font-size:0.83rem;margin-top:8px;line-height:1.6">
+            Bienvenue <strong style="color:#fff">${nom}</strong> !<br>
+            Payez les <strong style="color:#00C896">1 000 FCFA</strong> d'inscription pour rendre votre profil visible.
+          </div>
+        </div>
+        <div style="background:rgba(0,200,150,0.08);border:1px solid rgba(0,200,150,0.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:0.82rem;color:#bbb;line-height:1.8">
+          <div style="margin-bottom:6px;font-weight:700;color:#00C896">📱 Comment payer :</div>
+          <div>1. Envoyez <strong>1 000 FCFA</strong> sur MTN MoMo ou Airtel Money</div>
+          <div>2. Numéro Wokihub : <strong style="color:#fff;font-size:1rem">06 XXX XXX</strong></div>
+          <div>3. Motif du paiement : <strong style="color:#fff">Inscription ${user?.uid?.slice(0,8) || ''}</strong></div>
+          <div style="margin-top:8px;color:#888">Après paiement, cliquez sur "J'ai payé" — votre compte sera activé dès confirmation.</div>
+        </div>
+        ${isTalent ? `<div style="background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.2);border-radius:10px;padding:10px;margin-bottom:16px;font-size:0.78rem;color:#FFAA00;text-align:center">
+          ⭐ En tant que <strong>Talent</strong>, un réabonnement de <strong>2 000 FCFA/mois</strong> sera requis pour rester visible après le 1er mois.
+        </div>` : ''}
+        <button onclick="wkConfirmerPaiementInscription('${user?.uid || ''}','${role || ''}')"
+          style="width:100%;padding:13px;background:linear-gradient(135deg,#00C896,#00AAFF);color:#000;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:0.95rem;margin-bottom:10px">
+          ✅ J'ai payé — Activer mon compte
+        </button>
+        <button onclick="document.getElementById('wk-paiement-inscription-overlay').remove()"
+          style="width:100%;padding:10px;background:transparent;border:1px solid #444;border-radius:10px;color:#888;cursor:pointer;font-size:0.83rem">
+          Payer plus tard (compte invisible pour l'instant)
+        </button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  };
+
+  window.wkConfirmerPaiementInscription = async function(uid, role) {
+    if (!uid) return;
+    const btn = document.querySelector('#wk-paiement-inscription-overlay button');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Confirmation en cours...'; }
+    try {
+      // Marquer comme "en attente de validation" — admin activera manuellement
+      await setDoc(doc(db, 'utilisateurs', uid), {
+        inscriptionPayee: true,
+        paiementInscriptionStatut: 'en_attente_validation',
+        paiementInscriptionDate: serverTimestamp(),
+        visible: false  // restera false jusqu'à validation admin
+      }, { merge: true });
+
+      // Enregistrer la demande de paiement pour l'admin
+      await addDoc(collection(db, 'paiements_inscription'), {
+        userId: uid, role,
+        montant: 1000,
+        statut: 'en_attente',
+        createdAt: serverTimestamp()
+      });
+
+      document.getElementById('wk-paiement-inscription-overlay')?.remove();
+      showToast('✅ Paiement signalé ! Votre compte sera activé sous 24h après vérification. Merci 🙏');
+    } catch(e) {
+      if (btn) { btn.disabled = false; btn.textContent = '✅ J\'ai payé — Activer mon compte'; }
+      showToast('❌ Erreur — réessayez ou contactez-nous sur WhatsApp');
+    }
+  };
+
+  // ════════════════════════════════════════════════════════════
+  // MODULE : VÉRIFICATION ABONNEMENT MENSUEL TALENT (2 000 FCFA)
+  // ════════════════════════════════════════════════════════════
+  window.wkVerifierAbonnementTalent = async function(uid) {
+    if (!uid || !window._db) return;
+    try {
+      const snap = await getDoc(doc(db, 'utilisateurs', uid));
+      if (!snap.exists()) return;
+      const data = snap.data();
+      if (!data.isTalent) return; // clients non concernés
+
+      const maintenant = new Date();
+      const expire = data.abonnementExpire ? new Date(data.abonnementExpire) : null;
+
+      if (!data.abonnementActif || (expire && expire < maintenant)) {
+        // Abonnement expiré → rendre invisible
+        await setDoc(doc(db, 'utilisateurs', uid), {
+          visible: false,
+          abonnementActif: false
+        }, { merge: true });
+        showToast('⚠️ Votre abonnement mensuel a expiré. Renouvelez pour rester visible (2 000 FCFA/mois).');
+        // Afficher modal de renouvellement
+        setTimeout(() => wkAfficherRenouvellement(uid), 1500);
+      }
+    } catch(e) { console.warn('Vérif abonnement:', e.message); }
+  };
+
+  window.wkAfficherRenouvellement = function(uid) {
+    if (document.getElementById('wk-renouvellement-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'wk-renouvellement-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:#0D1117;border:2px solid #FFAA00;border-radius:16px;max-width:460px;width:100%;padding:28px;font-family:inherit;color:#ddd;">
+        <div style="text-align:center;margin-bottom:18px">
+          <div style="font-size:2rem;margin-bottom:8px">⚠️</div>
+          <h2 style="color:#FFAA00;margin:0;font-size:1.2rem">Abonnement expiré</h2>
+          <div style="color:#888;font-size:0.82rem;margin-top:6px;line-height:1.6">
+            Votre profil est <strong style="color:#FF4444">invisible</strong> pour les clients.<br>
+            Renouvelez votre abonnement pour être visible à nouveau.
+          </div>
+        </div>
+        <div style="background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:0.82rem;color:#bbb;line-height:1.8">
+          <div>📱 Envoyez <strong style="color:#FFAA00">2 000 FCFA</strong> sur MTN MoMo ou Airtel Money</div>
+          <div>Numéro Wokihub : <strong style="color:#fff">06 XXX XXX</strong></div>
+          <div>Motif : <strong style="color:#fff">Reabo ${uid?.slice(0,8) || ''}</strong></div>
+        </div>
+        <button onclick="wkConfirmerRenouvellement('${uid}')"
+          style="width:100%;padding:13px;background:#FFAA00;color:#000;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:0.9rem;margin-bottom:10px">
+          ✅ J'ai payé — Renouveler mon abonnement
+        </button>
+        <button onclick="document.getElementById('wk-renouvellement-overlay').remove()"
+          style="width:100%;padding:10px;background:transparent;border:1px solid #444;border-radius:10px;color:#888;cursor:pointer;font-size:0.82rem">
+          Fermer (profil invisible)
+        </button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  };
+
+  window.wkConfirmerRenouvellement = async function(uid) {
+    if (!uid) return;
+    const btn = document.querySelector('#wk-renouvellement-overlay button');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Confirmation en cours...'; }
+    try {
+      await setDoc(doc(db, 'utilisateurs', uid), {
+        renouvellementStatut: 'en_attente_validation',
+        renouvellementDate: serverTimestamp()
+      }, { merge: true });
+
+      await addDoc(collection(db, 'paiements_reabonnement'), {
+        userId: uid, montant: 2000, statut: 'en_attente',
+        createdAt: serverTimestamp()
+      });
+
+      document.getElementById('wk-renouvellement-overlay')?.remove();
+      showToast('✅ Renouvellement signalé ! Votre profil sera réactivé sous 24h. Merci 🙏');
+    } catch(e) {
+      if (btn) { btn.disabled = false; btn.textContent = '✅ J\'ai payé — Renouveler mon abonnement'; }
+      showToast('❌ Erreur — réessayez ou contactez-nous sur WhatsApp');
     }
   };
 
@@ -235,6 +395,17 @@
             if (data[f] != null) try { localStorage.setItem('fc-' + f, data[f]); } catch(e) {}
           });
           if (typeof updateNavbar === 'function') updateNavbar(u);
+          // Vérifier l'abonnement mensuel des talents
+          if (data.isTalent) {
+            setTimeout(() => wkVerifierAbonnementTalent(u.uid), 2000);
+          }
+          // Si compte non activé, afficher le modal de paiement
+          if (!data.inscriptionPayee && !data.visible) {
+            const nom = data.nom || data.pseudo || u.email.split('@')[0];
+            const role = data.role || 'client';
+            const isTalent = data.isTalent || false;
+            setTimeout(() => wkAfficherPaiementInscription(u, nom, role, isTalent), 1500);
+          }
         }
       }).catch(() => {});
     }
@@ -5957,6 +6128,27 @@ function ouvrirCompte() {
               });
             }
           }
+          // ── Bannière statut abonnement ──
+          const statusBanner = document.getElementById('wk-compte-status-banner');
+          if (statusBanner) {
+            if (!firestoreData.visible || !firestoreData.inscriptionPayee) {
+              statusBanner.style.display = 'block';
+              statusBanner.innerHTML = `<div style="padding:10px 14px;background:rgba(255,68,68,0.12);border:1px solid rgba(255,68,68,0.3);border-radius:10px;font-size:0.8rem;color:#FF6666;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                <span>🔴 Compte inactif — profil <strong>invisible</strong> pour les clients</span>
+                <button onclick="wkAfficherPaiementInscription(window._auth.currentUser,'${(firestoreData.nom||'').replace(/'/g,"\\'")}','${firestoreData.role||'client'}',${!!firestoreData.isTalent})" style="background:#FF4444;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap">Activer →</button>
+              </div>`;
+            } else if (firestoreData.isTalent && firestoreData.abonnementExpire) {
+              const expire = new Date(firestoreData.abonnementExpire);
+              const jours = Math.ceil((expire - new Date()) / 86400000);
+              if (jours <= 7 && jours > 0) {
+                statusBanner.style.display = 'block';
+                statusBanner.innerHTML = `<div style="padding:10px 14px;background:rgba(255,170,0,0.1);border:1px solid rgba(255,170,0,0.3);border-radius:10px;font-size:0.8rem;color:#FFAA00;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                  <span>⚠️ Abonnement expire dans <strong>${jours} jour(s)</strong></span>
+                  <button onclick="wkAfficherRenouvellement('${user.uid}')" style="background:#FFAA00;color:#000;border:none;border-radius:6px;padding:5px 10px;font-size:0.75rem;font-weight:700;cursor:pointer">Renouveler →</button>
+                </div>`;
+              } else { statusBanner.style.display = 'none'; }
+            } else { statusBanner.style.display = 'none'; }
+          }
         }
       }
     } catch(e) { console.warn('Firestore read:', e.message); }
@@ -6080,6 +6272,9 @@ function _renderComptePanel(user, firestoreData) {
       </div>
       <button onclick="fermerCompte()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .2s" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='none'">✕</button>
     </div>
+
+    <!-- BANNIÈRE STATUT ABONNEMENT -->
+    <div id="wk-compte-status-banner" style="display:none;margin-bottom:14px"></div>
 
     <!-- AVATAR -->
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:var(--bg-secondary);border-radius:14px;border:1px solid var(--border)">
@@ -6426,13 +6621,6 @@ async function sauvegarderCompte() {
   // Récupérer l'avatar (déjà sauvegardé en localStorage par previewAvatar)
   const avatar = localStorage.getItem('fc-avatar') || '';
 
-  // ── Récupérer les images portfolio depuis la prévisualisation ──
-  const portfolioImgs = [];
-  const previewEls = document.querySelectorAll('#portfolio-preview img');
-  previewEls.forEach(img => {
-    if (img.src && img.src.startsWith('data:')) portfolioImgs.push(img.src);
-  });
-
   // Valider le lien vidéo si renseigné
   if (videoRaw && !videoEmbed) {
     showToast('⚠️ Lien vidéo invalide — utilisez un lien YouTube valide');
@@ -6444,9 +6632,8 @@ async function sauvegarderCompte() {
   Object.entries(toSave).forEach(([k, v]) => {
     if (v) try { localStorage.setItem('fc-' + k, v); } catch(e) {}
   });
-  if (videoRaw)       try { localStorage.setItem('fc-video',  videoRaw);  } catch(e) {}
-  if (avatar)         try { localStorage.setItem('fc-avatar', avatar);    } catch(e) {}
-  if (portfolioImgs.length > 0) try { localStorage.setItem('fc-portfolio', JSON.stringify(portfolioImgs)); } catch(e) {}
+  if (videoRaw)   try { localStorage.setItem('fc-video',  videoRaw);  } catch(e) {}
+  if (avatar)     try { localStorage.setItem('fc-avatar', avatar);    } catch(e) {}
 
   // ── 2. Sauvegarder dans Firestore ──────────────────────────────
   const roleSelector = document.getElementById('compte-role-changer');
@@ -6473,18 +6660,12 @@ async function sauvegarderCompte() {
       if (reseau)     payload.reseau    = reseau;
       if (followers)  payload.followers = followers;
       if (avatar && avatar.length < 500000) payload.avatar = avatar;
-      if (portfolioImgs.length > 0) payload.portfolio = portfolioImgs;
 
       // Utiliser les fonctions déjà exposées sur window (pas de re-import)
       const _setDoc = window.setDoc || window._setDoc;
       const _doc    = window.doc    || window._doc;
       if (!_setDoc || !_doc) throw new Error('Firestore non initialisé');
-
-      // Timeout 8s pour éviter le blocage infini
-      await Promise.race([
-        _setDoc(_doc(window._db, 'utilisateurs', user.uid), payload, { merge: true }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('Délai dépassé — réessayez')), 8000))
-      ]);
+      await _setDoc(_doc(window._db, 'utilisateurs', user.uid), payload, { merge: true });
       firestoreOk = true;
     } catch(e) {
       console.error('Firestore save error:', e.message);
@@ -8937,35 +9118,48 @@ function filtrerTalents(q) {
   const grid = document.getElementById('photogs-grid');
   if (!grid) return;
 
-  // Réinitialiser si vide
+  // 1. Filtre immédiat sur les cards déjà affichées (réponse instantanée)
+  const cards = grid.querySelectorAll('.photog-card');
   if (!terme) {
+    cards.forEach(c => c.style.display = '');
+    // Recharger le métier actif pour tout afficher
     if (typeof chargerPhotographes === 'function') chargerPhotographes(window.metierActif || 'photographe');
     return;
   }
+  let nbVisible = 0;
+  cards.forEach(card => {
+    const text = (card.textContent || '').toLowerCase();
+    const visible = text.includes(terme);
+    card.style.display = visible ? '' : 'none';
+    if (visible) nbVisible++;
+  });
 
-  // Debounce 400ms → recherche Firestore directe (évite les faux positifs des cards démo)
-  clearTimeout(_rechercheTimer);
-  _rechercheTimer = setTimeout(async () => {
+  // 2. Si aucun résultat local → recherche Firestore par ville (debounce 400ms)
+  if (nbVisible === 0 && terme.length >= 3) {
+    clearTimeout(_rechercheTimer);
     grid.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center">🔍 Recherche en cours…</div>';
-    try {
-      const db = window._db;
-      if (!db) return;
-      const snap = await window._getDocs(window._collection(db, 'utilisateurs'));
-      let html = '';
-      snap.forEach(d => {
-        const data = d.data();
-        if (!data.nom && !data.pseudo) return;
-        if (data.bloque || data.visible === false) return;
-        const champs = [data.nom, data.pseudo, data.ville, data.spec, data.role].join(' ').toLowerCase();
-        if (champs.includes(terme)) {
-          html += (typeof makeCard === 'function') ? makeCard(d.id, data, data.role || window.metierActif || 'photographe', data.video || '') : '';
-        }
-      });
-      grid.innerHTML = html || `<div style="color:var(--text-muted);padding:40px;text-align:center">😕 Aucun résultat pour "<strong>${q}</strong>"</div>`;
-    } catch(e) {
-      grid.innerHTML = `<div style="color:var(--text-muted);padding:20px;text-align:center">😕 Erreur de recherche — réessayez</div>`;
-    }
-  }, 400);
+    _rechercheTimer = setTimeout(async () => {
+      try {
+        const db = window._db;
+        if (!db) return;
+        const { getDocs, collection, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        // Recherche par ville
+        const snap = await getDocs(collection(db, 'utilisateurs'));
+        let html = '';
+        snap.forEach(d => {
+          const data = d.data();
+          if (data.bloque || data.visible === false) return;
+          const champs = [data.nom, data.pseudo, data.ville, data.spec, data.role].join(' ').toLowerCase();
+          if (champs.includes(terme)) {
+            html += (typeof makeCard === 'function') ? makeCard(d.id, data, data.role || window.metierActif || 'photographe', data.video || '') : '';
+          }
+        });
+        grid.innerHTML = html || `<div style="color:var(--text-muted);padding:40px;text-align:center">😕 Aucun résultat pour "<strong>${q}</strong>"</div>`;
+      } catch(e) {
+        grid.innerHTML = `<div style="color:var(--text-muted);padding:20px;text-align:center">😕 Aucun résultat pour "${q}"</div>`;
+      }
+    }, 400);
+  }
 }
 function clearTalentSearch() {
   const input = document.getElementById('talent-search-input');
@@ -10690,31 +10884,37 @@ window.wkUrgence = function() {
 };
 
 window.wkSoumettreUrgence = async function() {
-  const user = auth.currentUser;
-  if (!user) return;
+  const user = window._auth ? window._auth.currentUser : null;
+  if (!user) { showToast('⚠️ Connectez-vous pour envoyer une alerte'); return; }
 
   const metier = document.getElementById('urg-metier')?.value;
-  const description = document.getElementById('urg-description')?.value;
-  const lieu = document.getElementById('urg-lieu')?.value;
+  const description = document.getElementById('urg-description')?.value?.trim();
+  const lieu = document.getElementById('urg-lieu')?.value?.trim();
   const budget = document.getElementById('urg-budget')?.value;
 
-  if (!metier || !description || !lieu || !budget) {
-    showToast('⚠️ Remplissez tous les champs obligatoires (*)');
-    return;
-  }
+  if (!metier) { showToast('⚠️ Choisissez le type de talent recherché'); return; }
+  if (!description) { showToast('⚠️ Décrivez la mission'); return; }
+  if (!lieu) { showToast('⚠️ Indiquez votre localisation'); return; }
+  if (!budget) { showToast('⚠️ Indiquez votre budget'); return; }
+
+  const btn = document.querySelector('#wk-urgence-overlay button[onclick="wkSoumettreUrgence()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi en cours...'; }
 
   try {
-    await addDoc(collection(db, 'urgences'), {
-      clientId: user.uid,
-      metier, description, lieu, budget,
-      commission: '12%',
-      statut: 'alerte_envoyee',
-      createdAt: new Date().toISOString()
-    });
+    await Promise.race([
+      window.addDoc(window.collection(window._db, 'urgences'), {
+        clientId: user.uid, clientEmail: user.email,
+        metier, description, lieu, budget,
+        commission: '12%', statut: 'alerte_envoyee',
+        createdAt: new Date().toISOString()
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+    ]);
     document.getElementById('wk-urgence-overlay')?.remove();
-    showToast('⚡ Alerte envoyée ! Les talents Partenaires disponibles dans votre zone seront contactés immédiatement.');
+    showToast('⚡ Alerte envoyée ! Les talents disponibles dans votre zone vont être contactés.');
   } catch(e) {
-    showToast('❌ Erreur lors de l\'envoi de l\'alerte');
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ Alerter les talents maintenant !'; }
+    showToast('❌ Erreur lors de l\'envoi — réessayez');
   }
 };
 
@@ -10793,29 +10993,35 @@ window.wkTrouverTalent = function() {
 };
 
 window.wkSoumettreDemandeTraouverTalent = async function() {
-  const user = auth.currentUser;
-  if (!user) return;
+  const user = window._auth ? window._auth.currentUser : null;
+  if (!user) { showToast('⚠️ Connectez-vous pour envoyer une demande'); return; }
   const metier = document.getElementById('tmt-metier')?.value;
-  const description = document.getElementById('tmt-description')?.value;
+  const description = document.getElementById('tmt-description')?.value?.trim();
   const date = document.getElementById('tmt-date')?.value;
   const ville = document.getElementById('tmt-ville')?.value;
-  if (!metier || !description || !date) {
-    showToast('⚠️ Remplissez le type de talent, la description et la date');
-    return;
-  }
+  if (!metier) { showToast('⚠️ Choisissez le type de talent'); return; }
+  if (!description) { showToast('⚠️ Décrivez votre besoin'); return; }
+  if (!date) { showToast('⚠️ Indiquez la date souhaitée'); return; }
+
+  const btn = document.querySelector('#wk-trouver-overlay button[onclick="wkSoumettreDemandeTraouverTalent()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi en cours...'; }
+
   try {
-    await addDoc(collection(db, 'demandes_talent'), {
-      clientId: user.uid,
-      metier, description, date, ville,
-      budget: document.getElementById('tmt-budget')?.value || '',
-      whatsapp: document.getElementById('tmt-whatsapp')?.value || '',
-      commission: '15%',
-      statut: 'en_traitement',
-      createdAt: new Date().toISOString()
-    });
+    await Promise.race([
+      window.addDoc(window.collection(window._db, 'demandes_talent'), {
+        clientId: user.uid, clientEmail: user.email,
+        metier, description, date, ville,
+        budget: document.getElementById('tmt-budget')?.value || '',
+        whatsapp: document.getElementById('tmt-whatsapp')?.value || '',
+        commission: '15%', statut: 'en_traitement',
+        createdAt: new Date().toISOString()
+      }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+    ]);
     document.getElementById('wk-trouver-overlay')?.remove();
     showToast('✅ Demande envoyée ! Wokihub vous présente 3 profils sous 24h. 🎯');
   } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '🎯 Envoyer ma demande'; }
     showToast('❌ Erreur lors de l\'envoi. Réessayez.');
   }
 };
