@@ -22,7 +22,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, browserLocalPersistence, setPersistence, sendEmailVerification }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, getDocs, doc, getDoc, setDoc, query, where, serverTimestamp, enableIndexedDbPersistence }
+  import { getFirestore, collection, addDoc, getDocs, doc, getDoc, setDoc, query, where, serverTimestamp, enableIndexedDbPersistence, onSnapshot }
     from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   // ✅ CONFIG FIREBASE WOKIHUB
@@ -413,6 +413,35 @@
     if (!_authInitialized) {
       _authInitialized = true;
       if (typeof chargerPhotographes === 'function') chargerPhotographes();
+    }
+
+    // ── Écoute temps réel des demandes (uniquement pour l'admin) ──
+    if (u && u.uid === 'vXHBhvyn95YIONUkHUfsXqw8VAu2') {
+      const _t0 = Date.now();
+      [
+        { col:'demandes_talent',    ico:'🎯', lbl:'Nouvelle demande talent' },
+        { col:'urgences',           ico:'⚡', lbl:'Urgence reçue' },
+        { col:'wokihub_events',     ico:'🎪', lbl:'Événement soumis' },
+        { col:'demandes_entreprise',ico:'🏢', lbl:'Demande entreprise' },
+      ].forEach(({ col, ico, lbl }) => {
+        onSnapshot(collection(db, col), snap => {
+          snap.docChanges().forEach(ch => {
+            if (ch.type !== 'added') return;
+            const d = ch.doc.data();
+            const ts = d.createdAt ? new Date(d.createdAt).getTime() : 0;
+            if (ts < _t0 - 5000) return; // ignorer docs existants
+            const detail = d.metier || d.type || d.nom || d.clientEmail || '';
+            showToast(ico + ' ' + lbl + (detail ? ' — ' + detail : ''));
+            // Incrémenter badge admin
+            const badge = document.getElementById('admin-demandes-badge');
+            if (badge) {
+              const n = (parseInt(badge.textContent)||0) + 1;
+              badge.textContent = n;
+              badge.style.display = 'inline-flex';
+            }
+          });
+        });
+      });
     }
   });
 
@@ -9653,7 +9682,8 @@ window.wkSoumettreRemboursement = async function() {
 
     <!-- Onglets -->
     <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-      <button onclick="wkAdminTab('missions')" id="tab-missions" class="wk-btn wk-btn-primary" style="width:auto;padding:7px 14px;font-size:0.8rem">Missions</button>
+      <button onclick="wkAdminTab('demandes')" id="tab-dem" class="wk-btn wk-btn-primary" style="width:auto;padding:7px 14px;font-size:0.8rem;background:linear-gradient(135deg,#FF4444,#FF6B35);border:none">🔔 Demandes</button>
+      <button onclick="wkAdminTab('missions')" id="tab-missions" class="wk-btn wk-btn-outline" style="width:auto;padding:7px 14px;font-size:0.8rem">Missions</button>
       <button onclick="wkAdminTab('remboursements')" id="tab-remb" class="wk-btn wk-btn-outline" style="width:auto;padding:7px 14px;font-size:0.8rem">Remboursements</button>
       <button onclick="wkAdminTab('signalements')" id="tab-sign" class="wk-btn wk-btn-outline" style="width:auto;padding:7px 14px;font-size:0.8rem">Signalements</button>
       <button onclick="wkAdminTab('parrainages')" id="tab-parr" class="wk-btn wk-btn-outline" style="width:auto;padding:7px 14px;font-size:0.8rem">Parrainages</button>
@@ -9676,7 +9706,7 @@ window.wkOuvrirAdmin = async function() {
   if (user.uid !== WK_ADMIN_UID) { showToast('❌ Accès refusé'); return; }
   document.getElementById('wk-admin-overlay').classList.add('open');
   await wkChargerStatsAdmin();
-  wkAdminTab('missions');
+  wkAdminTab('demandes');
 };
 
 async function wkChargerStatsAdmin() {
@@ -9701,11 +9731,11 @@ async function wkChargerStatsAdmin() {
 }
 
 window.wkAdminTab = async function(tab) {
-  ['missions','remb','sign','parr'].forEach(t => {
+  ['dem','missions','remb','sign','parr'].forEach(t => {
     const btn = document.getElementById('tab-' + t);
     if (btn) { btn.className = 'wk-btn wk-btn-outline'; btn.style.cssText = 'width:auto;padding:7px 14px;font-size:0.8rem'; }
   });
-  const activeBtn = document.getElementById('tab-' + (tab === 'missions' ? 'missions' : tab === 'remboursements' ? 'remb' : tab === 'signalements' ? 'sign' : 'parr'));
+  const activeBtn = document.getElementById('tab-' + (tab === 'demandes' ? 'dem' : tab === 'missions' ? 'missions' : tab === 'remboursements' ? 'remb' : tab === 'signalements' ? 'sign' : 'parr'));
   if (activeBtn) { activeBtn.className = 'wk-btn wk-btn-primary'; activeBtn.style.cssText = 'width:auto;padding:7px 14px;font-size:0.8rem'; }
   const content = document.getElementById('wk-admin-content');
   content.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px">⏳ Chargement...</div>';
@@ -9713,7 +9743,37 @@ window.wkAdminTab = async function(tab) {
   try {
     const { getDocs, collection, orderBy, query, limit } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     let html = '';
-    if (tab === 'missions') {
+    if (tab === 'demandes') {
+      // Charger les 4 collections de demandes clients
+      const cols = [
+        { col:'demandes_talent',     ico:'🎯', titre:'Trouver un talent',  champs:['metier','description','date','ville','budget','whatsapp'] },
+        { col:'urgences',            ico:'⚡', titre:'Urgences',           champs:['metier','description','lieu','budget'] },
+        { col:'wokihub_events',      ico:'🎪', titre:'Événements',         champs:['type','date','lieu','invites','budget','notes'] },
+        { col:'demandes_entreprise', ico:'🏢', titre:'Entreprises',        champs:['nom','type','besoins','tel'] },
+      ];
+      let allRows = '';
+      for (const { col, ico, titre, champs } of cols) {
+        const snap = await getDocs(collection(window._db, col));
+        if (!snap.empty) {
+          allRows += `<tr><td colspan="5" style="background:rgba(255,107,43,0.1);font-weight:700;color:#FF6B35;padding:8px 10px">${ico} ${titre} (${snap.size})</td></tr>`;
+          snap.forEach(d => {
+            const m = d.data();
+            const detail = champs.map(f => m[f] ? `<span style="color:#aaa;font-size:0.72rem">${f}:</span> <b>${m[f]}</b>` : '').filter(Boolean).join(' &nbsp;·&nbsp; ');
+            const date = m.createdAt ? new Date(m.createdAt).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+            const email = m.clientEmail || m.email || '—';
+            allRows += `<tr>
+              <td style="font-size:0.72rem;color:#888">${date}</td>
+              <td style="font-size:0.78rem">${email}</td>
+              <td colspan="3" style="font-size:0.78rem;line-height:1.6">${detail || '—'}</td>
+            </tr>`;
+          });
+        }
+      }
+      html = `<table class="wk-table">
+        <tr><th>Date</th><th>Client</th><th colspan="3">Détails</th></tr>
+        ${allRows || '<tr><td colspan="5" style="text-align:center;color:#666;padding:20px">Aucune demande reçue</td></tr>'}
+      </table>`;
+    } else if (tab === 'missions') {
       const snap = await getDocs(collection(window._db, 'missions'));
       html = `<table class="wk-table"><tr><th>ID Mission</th><th>Créatif</th><th>Montant</th><th>Commission</th><th>Statut</th></tr>`;
       snap.forEach(d => {
@@ -10126,13 +10186,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const user = window._auth.currentUser;
     if (user) {
       const adminBtn = document.createElement('button');
-      adminBtn.textContent = '🛡️';
       adminBtn.title = 'Tableau de bord Admin';
       adminBtn.style.cssText = 'position:fixed;bottom:130px;right:16px;width:44px;height:44px;' +
         'border-radius:50%;background:rgba(0,24,51,0.9);border:1px solid rgba(0,170,255,0.4);' +
         'color:#00AAFF;font-size:1.1rem;cursor:pointer;z-index:9000;' +
-        'box-shadow:0 2px 12px rgba(0,0,0,0.4)';
-      adminBtn.onclick = () => wkOuvrirAdmin();
+        'box-shadow:0 2px 12px rgba(0,0,0,0.4);position:fixed;display:flex;align-items:center;justify-content:center';
+      adminBtn.innerHTML = '🛡️<span id="admin-demandes-badge" style="display:none;position:absolute;' +
+        'top:-5px;right:-5px;background:#FF4444;color:#fff;font-size:0.6rem;font-weight:800;' +
+        'min-width:18px;height:18px;border-radius:50%;align-items:center;justify-content:center;' +
+        'border:2px solid var(--bg-primary,#080610);padding:0 2px">0</span>';
+      adminBtn.onclick = () => {
+        wkOuvrirAdmin();
+        const b = document.getElementById('admin-demandes-badge');
+        if (b) { b.textContent = '0'; b.style.display = 'none'; }
+      };
       document.body.appendChild(adminBtn);
     }
   }, 2000);
