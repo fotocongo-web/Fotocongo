@@ -16,6 +16,8 @@
 <meta name="msapplication-TileColor" content="#0A0A1A">
 <title>Wokihub – La plateforme des talents au Congo</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Fonts pour la page Services -->
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 
 <!-- FIREBASE SDK - VERSION CORRIGÉE -->
 <script type="module">
@@ -3387,7 +3389,8 @@ footer {
     <li><a href="#photographes" data-i18n="nav.creatifs">Créatifs</a></li>
     <li><a href="#evenements" data-i18n="nav.evenements">Événements</a></li>
     <li><a href="#recrutement" data-i18n="nav.formation">Formation</a></li>
-    <li><a href="#services-pro">Services</a>
+    <li><a href="#services-pro">Services Pro</a>
+        <a href="#" onclick="wkShowServicesPage(event)" id="nav-services-link">Services ✨</a>
         <a href="#tarifs" data-i18n="nav.tarifs">Tarifs</a></li>
     <li><a href="#partenaires" data-i18n="nav.partenaires">Partenaires</a></li>
     <li><a href="#faq" data-i18n="nav.faq">FAQ</a></li>
@@ -9811,7 +9814,365 @@ window.wkGenererRecu = function(missionId, creatifNom, montant, commission, crea
       .row:last-child{border-bottom:none}
       .total{background:#f8f8f8;font-weight:bold}
       .footer{text-align:center;color:#aaa;font-size:0.75rem;margin-top:20px}
-    </style></head>
+    </style>
+<!-- ═══ SERVICES PAGE — CSS ═══ -->
+<style id="wk-services-styles">
+/* Services page — encapsulé */
+#wk-services-page { display:none; }
+#wk-services-page.active { display:block; animation: fadeInPage .3s ease; }
+@keyframes fadeInPage { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+:root {
+  --dark:    #07080F;
+  --dark2:   #0D1020;
+  --card:    #111422;
+  --border:  rgba(255,255,255,0.07);
+  --text:    #E8ECFF;
+  --muted:   #5A6380;
+  --blue:    #00AAFF;
+  --green:   #00C896;
+  --gold:    #FFD700;
+  --red:     #FF4444;
+  --violet:  #B06AFF;
+  --orange:  #FFAA00;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body {
+  background: var(--dark);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Grain overlay ── */
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:.4;
+}
+
+/* ── Header ── */
+.site-header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(7,8,15,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 5%;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 60px;
+}
+.header-logo {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 1.15rem;
+  background: linear-gradient(135deg, var(--green), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; text-decoration: none;
+}
+.header-back {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--muted); font-size: 0.82rem;
+  text-decoration: none; transition: color 0.2s;
+}
+.header-back:hover { color: var(--text); }
+.header-back svg { transition: transform 0.2s; }
+.header-back:hover svg { transform: translateX(-3px); }
+
+/* ── Hero ── */
+.hero {
+  text-align: center;
+  padding: 80px 5% 60px;
+  position: relative; z-index: 1;
+}
+.hero-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(0,200,150,0.08); border: 1px solid rgba(0,200,150,0.2);
+  border-radius: 40px; padding: 7px 18px;
+  font-size: 0.73rem; font-weight: 600; color: var(--green);
+  letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 24px;
+}
+.hero-chip::before {
+  content:''; width:7px; height:7px; background: var(--green);
+  border-radius:50%; animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100%{opacity:1;transform:scale(1);}
+  50%{opacity:.4;transform:scale(.7);}
+}
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2.2rem, 6vw, 3.6rem);
+  font-weight: 800; line-height: 1.08; color: #fff;
+  margin-bottom: 18px; letter-spacing: -0.02em;
+}
+.hero-grad {
+  background: linear-gradient(135deg, var(--green) 0%, var(--blue) 50%, var(--violet) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero-sub {
+  font-size: 0.98rem; color: var(--muted);
+  line-height: 1.75; max-width: 540px; margin: 0 auto 14px;
+}
+.hero-note {
+  font-size: 0.75rem; color: rgba(90,99,128,0.7);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+
+/* ── Services Grid ── */
+.services-section {
+  padding: 0 5% 100px;
+  max-width: 1200px; margin: 0 auto;
+  position: relative; z-index: 1;
+}
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+/* ── Service Card ── */
+.svc {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  cursor: pointer;
+  transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 0;
+}
+.svc::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--svc-glow, transparent);
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  border-radius: 20px;
+}
+.svc:hover { transform: translateY(-5px); }
+.svc:hover::before { opacity: 1; }
+
+.svc-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.svc-icon-wrap {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: var(--svc-iconbg, rgba(255,255,255,0.05));
+  border: 1px solid var(--svc-border2, rgba(255,255,255,0.08));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+}
+.svc-badge-pill {
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 0.68rem; font-weight: 700;
+  background: var(--svc-badgebg); color: var(--svc-color);
+  border: 1px solid var(--svc-badgeborder);
+  letter-spacing: 0.3px; white-space: nowrap;
+}
+.svc-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.08rem; font-weight: 700;
+  color: var(--svc-color); margin-bottom: 8px;
+}
+.svc-desc {
+  font-size: 0.83rem; color: var(--muted);
+  line-height: 1.75; margin-bottom: 20px; flex: 1;
+}
+.svc-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.svc-cta-label {
+  font-size: 0.83rem; font-weight: 600; color: var(--svc-color);
+  display: flex; align-items: center; gap: 6px;
+}
+.svc-cta-arrow {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--svc-badgebg);
+  border: 1px solid var(--svc-badgeborder);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--svc-color); font-size: 1rem;
+  transition: transform 0.2s;
+}
+.svc:hover .svc-cta-arrow { transform: translateX(3px); }
+
+/* ── Overlay / Drawer ── */
+.wks-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.92);
+  backdrop-filter: blur(12px);
+  z-index: 1000;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+.wks-overlay.open { display: flex; animation: fadeIn .2s ease; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+.wks-drawer {
+  background: var(--dark2);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  width: 100%; max-width: 680px;
+  max-height: 90vh; overflow-y: auto;
+  padding: 36px 36px 48px;
+  position: relative;
+  animation: slideUp .3s cubic-bezier(.16,1,.3,1);
+}
+@media(min-width:700px){
+  .wks-overlay { align-items: center; padding: 20px; }
+  .wks-drawer { border-radius: 24px; border-bottom: 1px solid var(--border); max-height: 88vh; }
+}
+@keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+.wks-drawer-close {
+  position: absolute; top: 18px; right: 18px;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.wks-drawer-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+.wks-drawer-header { margin-bottom: 28px; }
+.wks-drawer-emoji { font-size: 2.2rem; margin-bottom: 10px; }
+.wks-drawer-title {
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: 1.35rem; color: #fff; margin-bottom: 6px;
+}
+.wks-drawer-sub { font-size: 0.84rem; color: var(--muted); line-height: 1.6; }
+
+/* Form elements inside drawer */
+.wks-field { margin-bottom: 16px; }
+.wks-label {
+  display: block; font-size: 0.75rem; font-weight: 600;
+  color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.8px; margin-bottom: 7px;
+}
+.wks-req { color: var(--green); margin-left: 2px; }
+.wks-input, .wks-select, .wks-textarea {
+  width: 100%; padding: 11px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+  outline: none; transition: border-color 0.2s, background 0.2s;
+}
+.wks-input::placeholder, .wks-textarea::placeholder { color: rgba(90,99,128,0.55); }
+.wks-input:focus, .wks-select:focus, .wks-textarea:focus {
+  border-color: var(--active-color, var(--green));
+  background: rgba(0,200,150,0.03);
+}
+.wks-select {
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A6380' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px;
+}
+.wks-select option { background: #0D1020; }
+.wks-textarea { resize: vertical; min-height: 90px; }
+.wks-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media(max-width:480px){ .wks-row { grid-template-columns: 1fr; } }
+
+.wks-info-box {
+  border-radius: 10px; padding: 13px 15px;
+  font-size: 0.79rem; line-height: 1.6;
+  margin: 18px 0;
+}
+
+.wks-checkbox-group {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 8px;
+}
+.wks-check-item {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.02);
+  font-size: 0.81rem; color: var(--text);
+  transition: all .15s; user-select: none;
+}
+.wks-check-item:hover { border-color: rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); }
+.wks-check-item input { accent-color: var(--active-color, var(--green)); width:15px; height:15px; flex-shrink:0; }
+
+/* Submit buttons */
+.wks-btn-submit {
+  width: 100%; padding: 15px;
+  border: none; border-radius: 12px;
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 0.97rem; cursor: pointer;
+  transition: all .2s; margin-top: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.wks-btn-submit:hover { transform: translateY(-2px); }
+
+/* Success state */
+.wks-success {
+  display: none; text-align: center; padding: 20px 0 10px;
+}
+.wks-success.show { display: block; animation: fadeIn .3s ease; }
+.wks-success-icon { font-size: 3rem; animation: bounceIn .5s ease; }
+@keyframes bounceIn { 0%{transform:scale(0);opacity:0} 65%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+.wks-success-title {
+  font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800;
+  color: #fff; margin: 14px 0 8px;
+}
+.wks-success-sub { font-size: 0.85rem; color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
+.wks-send-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 14px; }
+.wks-btn-wa {
+  background: #25D366; color: #fff; border: none; border-radius: 10px;
+  padding: 12px 22px; font-family: 'DM Sans', sans-serif; font-weight: 700;
+  font-size: 0.9rem; cursor: pointer; text-decoration: none;
+  display: flex; align-items: center; gap: 8px; transition: opacity .2s;
+}
+.wks-btn-wa:hover { opacity: .88; }
+.wks-btn-email {
+  background: rgba(255,255,255,0.07); color: var(--text);
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 10px;
+  padding: 12px 22px; font-family: 'DM Sans', sans-serif; font-weight: 600;
+  font-size: 0.9rem; cursor: pointer; text-decoration: none;
+  display: flex; align-items: center; gap: 8px; transition: all .2s;
+}
+.wks-btn-email:hover { background: rgba(255,255,255,0.12); }
+.wks-btn-reset {
+  background: none; border: none; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; font-size: 0.83rem;
+  cursor: pointer; text-decoration: underline; margin-top: 4px;
+}
+
+/* Operator buttons */
+.wks-op-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.wks-op-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 10px;
+  border: 2px solid transparent;
+  background: rgba(255,255,255,0.04);
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.wks-op-dot { width: 9px; height: 9px; border-radius: 50%; }
+.wks-op-mtn { border-color: rgba(255,215,0,.3); }
+.wks-op-airtel { border-color: rgba(255,68,68,.3); }
+.wks-op-mtn:hover, .wks-op-mtn.active { background: rgba(255,215,0,.1); border-color: #FFD700; }
+.wks-op-airtel:hover, .wks-op-airtel.active { background: rgba(255,68,68,.1); border-color: #FF4444; }
+
+/* ── Footer ── */
+.site-footer {
+  text-align: center;
+  padding: 40px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--muted); font-size: 0.78rem;
+  line-height: 1.9; position: relative; z-index: 1;
+}
+.site-footer strong { color: var(--green); }
+
+</style>
+</head>
     <body>
       <div class="header">
         <h1>WOKIHUB</h1>
@@ -9831,7 +10192,643 @@ window.wkGenererRecu = function(missionId, creatifNom, montant, commission, crea
         Wokihub Services — Brazzaville, République du Congo<br>
         wokihub.vercel.app — Document généré automatiquement
       </div>
-    </body></html>`;
+    
+<!-- ═══════════════════════════════════════════════════════
+     SERVICES PAGE — intégrée depuis services.html
+═══════════════════════════════════════════════════════ -->
+<section id="wk-services-page">
+<!-- Header -->
+
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-chip">Services exclusifs</div>
+  <h1 class="hero-title">Wokihub <span class="hero-grad">fait plus</span><br>pour vous</h1>
+  <p class="hero-sub">Des services pensés pour les clients qui veulent aller vite et les talents qui veulent briller.</p>
+  <p class="hero-note">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.93a16 16 0 0 0 6.07 6.07l1.9-1.9a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22.44 15.5z"/></svg>
+    Toutes les demandes arrivent directement sur WhatsApp &amp; Email Wokihub
+  </p>
+</div>
+
+<!-- Services -->
+<div class="services-section">
+  <div class="services-grid">
+
+    <!-- 1. Trouver un talent -->
+    <div class="svc" onclick="wksOpen('talent')"
+      style="--svc-color:#00AAFF;--svc-glow:radial-gradient(ellipse at top left,rgba(0,170,255,0.07),transparent 60%);--svc-iconbg:rgba(0,170,255,0.1);--svc-border2:rgba(0,170,255,0.2);--svc-badgebg:rgba(0,170,255,0.1);--svc-badgeborder:rgba(0,170,255,0.25);">
+      <div class="svc-top">
+        <div class="svc-icon-wrap">🎯</div>
+        <div class="svc-badge-pill">Commission 15%</div>
+      </div>
+      <div class="svc-title">Trouver un talent</div>
+      <div class="svc-desc">Décrivez votre besoin — Wokihub sélectionne les 3 meilleurs profils et vous les présente sous 24h.</div>
+      <div class="svc-cta">
+        <div class="svc-cta-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Soumettre ma demande
+        </div>
+        <div class="svc-cta-arrow">→</div>
+      </div>
+    </div>
+
+    <!-- 2. Organiser un événement -->
+    <div class="svc" onclick="wksOpen('events')"
+      style="--svc-color:#FFD700;--svc-glow:radial-gradient(ellipse at top left,rgba(255,215,0,0.06),transparent 60%);--svc-iconbg:rgba(255,215,0,0.1);--svc-border2:rgba(255,215,0,0.2);--svc-badgebg:rgba(255,215,0,0.1);--svc-badgeborder:rgba(255,215,0,0.25);">
+      <div class="svc-top">
+        <div class="svc-icon-wrap">🎪</div>
+        <div class="svc-badge-pill">10% / talent</div>
+      </div>
+      <div class="svc-title">Organiser mon événement</div>
+      <div class="svc-desc">Mariage, baptême, anniversaire, séminaire — Wokihub coordonne tous vos talents en un seul package.</div>
+      <div class="svc-cta">
+        <div class="svc-cta-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Planifier mon événement
+        </div>
+        <div class="svc-cta-arrow">→</div>
+      </div>
+    </div>
+
+    <!-- 3. Urgence -->
+    <div class="svc" onclick="wksOpen('urgence')"
+      style="--svc-color:#FF4444;--svc-glow:radial-gradient(ellipse at top left,rgba(255,68,68,0.06),transparent 60%);--svc-iconbg:rgba(255,68,68,0.1);--svc-border2:rgba(255,68,68,0.2);--svc-badgebg:rgba(255,68,68,0.1);--svc-badgeborder:rgba(255,68,68,0.25);">
+      <div class="svc-top">
+        <div class="svc-icon-wrap">⚡</div>
+        <div class="svc-badge-pill">Commission 12%</div>
+      </div>
+      <div class="svc-title">Alerte talent urgente</div>
+      <div class="svc-desc">Besoin d'un talent <strong style="color:#FF4444">maintenant</strong> ? Les partenaires disponibles dans votre zone sont alertés immédiatement.</div>
+      <div class="svc-cta">
+        <div class="svc-cta-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
+          Lancer l'alerte maintenant
+        </div>
+        <div class="svc-cta-arrow">→</div>
+      </div>
+    </div>
+
+    <!-- 4. Devis entreprise -->
+    <div class="svc" onclick="wksOpen('entreprise')"
+      style="--svc-color:#B06AFF;--svc-glow:radial-gradient(ellipse at top left,rgba(176,106,255,0.06),transparent 60%);--svc-iconbg:rgba(176,106,255,0.1);--svc-border2:rgba(176,106,255,0.2);--svc-badgebg:rgba(176,106,255,0.1);--svc-badgeborder:rgba(176,106,255,0.25);">
+      <div class="svc-top">
+        <div class="svc-icon-wrap">🏢</div>
+        <div class="svc-badge-pill">Sur devis</div>
+      </div>
+      <div class="svc-title">Devis personnalisé Entreprise</div>
+      <div class="svc-desc">PME, ONG, institutions — accès illimité aux talents Wokihub. Forfait mensuel fixe, zéro surprise.</div>
+      <div class="svc-cta">
+        <div class="svc-cta-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          Demander un devis
+        </div>
+        <div class="svc-cta-arrow">→</div>
+      </div>
+    </div>
+
+    <!-- 5. Publier un flyer -->
+    <div class="svc" onclick="wksOpen('flyer')"
+      style="--svc-color:#00C896;--svc-glow:radial-gradient(ellipse at top left,rgba(0,200,150,0.06),transparent 60%);--svc-iconbg:rgba(0,200,150,0.1);--svc-border2:rgba(0,200,150,0.2);--svc-badgebg:rgba(0,200,150,0.1);--svc-badgeborder:rgba(0,200,150,0.25);">
+      <div class="svc-top">
+        <div class="svc-icon-wrap">📣</div>
+        <div class="svc-badge-pill">Gratuit</div>
+      </div>
+      <div class="svc-title">Publier mon flyer</div>
+      <div class="svc-desc">Soirée, concert, formation, offre d'emploi — publiez votre flyer et touchez toute la communauté Wokihub.</div>
+      <div class="svc-cta">
+        <div class="svc-cta-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><path d="M13 8h4M13 12h4"/></svg>
+          Soumettre mon flyer
+        </div>
+        <div class="svc-cta-arrow">→</div>
+      </div>
+    </div>
+
+    <!-- 6. Devenir Partenaire -->
+    <div class="svc" onclick="location.href='index.html#services-pro'"
+      style="--svc-color:#FFAA00;--svc-glow:radial-gradient(ellipse at top left,rgba(255,170,0,0.06),transparent 60%);--svc-iconbg:rgba(255,170,0,0.1);--svc-border2:rgba(255,170,0,0.2);--svc-badgebg:rgba(255,170,0,0.1);--svc-badgeborder:rgba(255,170,0,0.25);">
+      <div class="svc-top">
+        <div class="svc-icon-wrap">🏅</div>
+        <div class="svc-badge-pill">Dès 5 000 FCFA</div>
+      </div>
+      <div class="svc-title">Devenir Talent Partenaire</div>
+      <div class="svc-desc">Priorité dans les résultats, badge vérifié, commission réduite à 7%, accès aux missions entreprise.</div>
+      <div class="svc-cta">
+        <div class="svc-cta-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          Rejoindre le programme
+        </div>
+        <div class="svc-cta-arrow">→</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Footer -->
+
+
+
+<!-- ═══════════════════════════════════════════
+     DRAWER : TROUVER UN TALENT
+════════════════════════════════════════════ -->
+<div id="wks-overlay-talent" class="wks-overlay" onclick="if(event.target===this)wksClose('talent')">
+  <div class="wks-drawer" style="--active-color:#00AAFF">
+    <button class="wks-drawer-close" onclick="wksClose('talent')">✕</button>
+    <div id="wks-form-talent">
+      <div class="wks-drawer-header">
+        <div class="wks-drawer-emoji">🎯</div>
+        <div class="wks-drawer-title" style="color:#00AAFF">Trouver un talent</div>
+        <div class="wks-drawer-sub">Décrivez votre besoin — nous vous sélectionnons les 3 meilleurs profils sous 24h.</div>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Type de talent recherché <span class="wks-req">*</span></label>
+        <select class="wks-select" id="t-metier">
+          <option value="">-- Choisir --</option>
+          <option>Photographe</option><option>Vidéaste / Cameraman</option><option>DJ / Animateur</option>
+          <option>Musicien / Artiste</option><option>Graphiste / Designer</option><option>Coiffeur(se)</option>
+          <option>Maquilleur(se)</option><option>Décorateur(rice)</option><option>Traiteur</option>
+          <option>Maître de cérémonie</option><option>Couturier(ère)</option><option>Développeur web</option>
+          <option>Community Manager</option><option>Formateur</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Décrivez votre besoin <span class="wks-req">*</span></label>
+        <textarea class="wks-textarea" id="t-description" placeholder="Ex : Recherche photographe professionnel pour mariage le 15 juin à Brazzaville, environ 6h de prestation..."></textarea>
+      </div>
+      <div class="wks-row">
+        <div class="wks-field">
+          <label class="wks-label">Date souhaitée <span class="wks-req">*</span></label>
+          <input type="date" class="wks-input" id="t-date">
+        </div>
+        <div class="wks-field">
+          <label class="wks-label">Ville <span class="wks-req">*</span></label>
+          <select class="wks-select" id="t-ville">
+            <option value="">Sélectionner...</option>
+            <option>Brazzaville</option><option>Pointe-Noire</option><option>Dolisie</option><option>Nkayi</option><option>Autre</option>
+          </select>
+        </div>
+      </div>
+      <div class="wks-row">
+        <div class="wks-field">
+          <label class="wks-label">Budget estimé (FCFA)</label>
+          <input type="number" class="wks-input" id="t-budget" placeholder="Ex : 50000">
+        </div>
+        <div class="wks-field">
+          <label class="wks-label">Votre WhatsApp <span class="wks-req">*</span></label>
+          <input type="tel" class="wks-input" id="t-tel" placeholder="06 XX XX XX XX">
+        </div>
+      </div>
+      <div class="wks-info-box" style="background:rgba(0,170,255,0.07);border:1px solid rgba(0,170,255,0.2);color:#aaa;">
+        ✅ <strong style="color:#00AAFF">Comment ça marche :</strong> Vous soumettez → Wokihub sélectionne 3 profils → Vous recevez les propositions sous 24h. Commission <strong style="color:#FF6B35">15%</strong> sur la mission.
+      </div>
+      <button class="wks-btn-submit" style="background:linear-gradient(135deg,#00AAFF,#00C896);color:#000;box-shadow:0 6px 24px rgba(0,170,255,0.3);" onclick="wksSubmit('talent')">
+        🎯 Soumettre ma demande
+      </button>
+    </div>
+    <div class="wks-success" id="wks-success-talent">
+      <div class="wks-success-icon">✅</div>
+      <div class="wks-success-title">Demande prête !</div>
+      <div class="wks-success-sub">Envoyez votre demande via WhatsApp ou Email. Wokihub vous répond sous 24h avec 3 profils sélectionnés.</div>
+      <div class="wks-send-btns">
+        <a id="wks-wa-talent" href="#" target="_blank" class="wks-btn-wa">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.117 1.516 5.846L.047 23.887l6.198-1.446C7.877 23.437 9.9 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.899 0-3.659-.556-5.14-1.511l-.367-.218-3.807.888.906-3.713-.241-.38C2.556 15.659 2 13.9 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+          WhatsApp
+        </a>
+        <a id="wks-em-talent" href="#" target="_blank" class="wks-btn-email">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email
+        </a>
+      </div>
+      <button class="wks-btn-reset" onclick="wksReset('talent')">← Modifier la demande</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     DRAWER : ORGANISER UN ÉVÉNEMENT
+════════════════════════════════════════════ -->
+<div id="wks-overlay-events" class="wks-overlay" onclick="if(event.target===this)wksClose('events')">
+  <div class="wks-drawer" style="--active-color:#FFD700">
+    <button class="wks-drawer-close" onclick="wksClose('events')">✕</button>
+    <div id="wks-form-events">
+      <div class="wks-drawer-header">
+        <div class="wks-drawer-emoji">🎪</div>
+        <div class="wks-drawer-title" style="color:#FFD700">Organiser mon événement</div>
+        <div class="wks-drawer-sub">Wokihub coordonne tous vos talents — photographe, DJ, traiteur, décorateur — en un seul package.</div>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Type d'événement <span class="wks-req">*</span></label>
+        <select class="wks-select" id="ev-type2">
+          <option value="">-- Choisir --</option>
+          <option>Mariage</option><option>Baptême</option><option>Anniversaire</option>
+          <option>Événement d'entreprise</option><option>Soirée privée</option>
+          <option>Conférence / Séminaire</option><option>Concert / Show</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Talents souhaités <span class="wks-req">*</span></label>
+        <div class="wks-checkbox-group" id="ev-talents-group">
+          <!-- généré par JS -->
+        </div>
+      </div>
+      <div class="wks-row">
+        <div class="wks-field">
+          <label class="wks-label">Date de l'événement <span class="wks-req">*</span></label>
+          <input type="date" class="wks-input" id="ev-date2">
+        </div>
+        <div class="wks-field">
+          <label class="wks-label">Nombre d'invités</label>
+          <input type="number" class="wks-input" id="ev-invites2" placeholder="Ex: 150">
+        </div>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Lieu <span class="wks-req">*</span></label>
+        <input type="text" class="wks-input" id="ev-lieu2" placeholder="Ex: Hôtel Ledger, Brazzaville">
+      </div>
+      <div class="wks-row">
+        <div class="wks-field">
+          <label class="wks-label">Budget total (FCFA)</label>
+          <input type="number" class="wks-input" id="ev-budget2" placeholder="Ex: 500000">
+        </div>
+        <div class="wks-field">
+          <label class="wks-label">Votre WhatsApp <span class="wks-req">*</span></label>
+          <input type="tel" class="wks-input" id="ev-tel" placeholder="06 XX XX XX XX">
+        </div>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Informations complémentaires</label>
+        <textarea class="wks-textarea" id="ev-notes2" placeholder="Thème, couleurs, exigences particulières..."></textarea>
+      </div>
+      <div class="wks-info-box" style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);color:#aaa;">
+        ⚡ Commission Wokihub : <strong style="color:#FFD700">10% par talent</strong> (coordination complète incluse)
+      </div>
+      <button class="wks-btn-submit" style="background:#FFD700;color:#000;box-shadow:0 6px 24px rgba(255,215,0,0.25);" onclick="wksSubmit('events')">
+        🎪 Organiser mon événement
+      </button>
+    </div>
+    <div class="wks-success" id="wks-success-events">
+      <div class="wks-success-icon">🎉</div>
+      <div class="wks-success-title">Demande prête !</div>
+      <div class="wks-success-sub">Envoyez votre demande — Wokihub vous rappelle sous 24h pour construire votre package sur mesure.</div>
+      <div class="wks-send-btns">
+        <a id="wks-wa-events" href="#" target="_blank" class="wks-btn-wa">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.117 1.516 5.846L.047 23.887l6.198-1.446C7.877 23.437 9.9 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.899 0-3.659-.556-5.14-1.511l-.367-.218-3.807.888.906-3.713-.241-.38C2.556 15.659 2 13.9 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+          WhatsApp
+        </a>
+        <a id="wks-em-events" href="#" target="_blank" class="wks-btn-email">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email
+        </a>
+      </div>
+      <button class="wks-btn-reset" onclick="wksReset('events')">← Modifier la demande</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     DRAWER : URGENCE
+════════════════════════════════════════════ -->
+<div id="wks-overlay-urgence" class="wks-overlay" onclick="if(event.target===this)wksClose('urgence')">
+  <div class="wks-drawer" style="--active-color:#FF4444">
+    <button class="wks-drawer-close" onclick="wksClose('urgence')">✕</button>
+    <div id="wks-form-urgence">
+      <div class="wks-drawer-header">
+        <div class="wks-drawer-emoji">⚡</div>
+        <div class="wks-drawer-title" style="color:#FF4444">Alerte talent urgente</div>
+        <div class="wks-drawer-sub">Besoin d'un talent <strong style="color:#FF4444">maintenant</strong> ? Les partenaires disponibles dans votre zone seront alertés immédiatement.</div>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Talent recherché <span class="wks-req">*</span></label>
+        <select class="wks-select" id="urg-metier2">
+          <option value="">-- Choisir --</option>
+          <option>Photographe</option><option>Vidéaste</option><option>DJ</option>
+          <option>Musicien</option><option>Coiffeur(se)</option><option>Maquilleur(se)</option>
+          <option>Graphiste</option><option>Informaticien</option><option>Traiteur</option>
+          <option>Décorateur</option><option>Couturier</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Description de la mission <span class="wks-req">*</span></label>
+        <textarea class="wks-textarea" id="urg-desc2" placeholder="Décrivez brièvement votre besoin urgent et les conditions de la mission..."></textarea>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Votre localisation exacte <span class="wks-req">*</span></label>
+        <input type="text" class="wks-input" id="urg-lieu2" placeholder="Ex: Brazzaville, Centre-ville, Rue de...">
+      </div>
+      <div class="wks-row">
+        <div class="wks-field">
+          <label class="wks-label">Budget (FCFA) <span class="wks-req">*</span></label>
+          <input type="number" class="wks-input" id="urg-budget2" placeholder="Ex: 25000">
+        </div>
+        <div class="wks-field">
+          <label class="wks-label">Votre WhatsApp <span class="wks-req">*</span></label>
+          <input type="tel" class="wks-input" id="urg-tel" placeholder="06 XX XX XX XX">
+        </div>
+      </div>
+      <div class="wks-info-box" style="background:rgba(255,68,68,0.07);border:1px solid rgba(255,68,68,0.25);color:#FF6B6B;">
+        ⚡ Service Urgence — Commission <strong>12%</strong> (priorité de traitement immédiate)
+      </div>
+      <button class="wks-btn-submit" style="background:#FF4444;color:#fff;box-shadow:0 6px 24px rgba(255,68,68,0.3);" onclick="wksSubmit('urgence')">
+        ⚡ Alerter les talents maintenant
+      </button>
+    </div>
+    <div class="wks-success" id="wks-success-urgence">
+      <div class="wks-success-icon">🚨</div>
+      <div class="wks-success-title">Alerte prête !</div>
+      <div class="wks-success-sub">Envoyez l'alerte immédiatement. Les partenaires disponibles dans votre zone seront notifiés en priorité.</div>
+      <div class="wks-send-btns">
+        <a id="wks-wa-urgence" href="#" target="_blank" class="wks-btn-wa">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.117 1.516 5.846L.047 23.887l6.198-1.446C7.877 23.437 9.9 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.899 0-3.659-.556-5.14-1.511l-.367-.218-3.807.888.906-3.713-.241-.38C2.556 15.659 2 13.9 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+          WhatsApp
+        </a>
+        <a id="wks-em-urgence" href="#" target="_blank" class="wks-btn-email">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email
+        </a>
+      </div>
+      <button class="wks-btn-reset" onclick="wksReset('urgence')">← Modifier</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     DRAWER : ENTREPRISE
+════════════════════════════════════════════ -->
+<div id="wks-overlay-entreprise" class="wks-overlay" onclick="if(event.target===this)wksClose('entreprise')">
+  <div class="wks-drawer" style="--active-color:#B06AFF">
+    <button class="wks-drawer-close" onclick="wksClose('entreprise')">✕</button>
+    <div id="wks-form-entreprise">
+      <div class="wks-drawer-header">
+        <div class="wks-drawer-emoji">🏢</div>
+        <div class="wks-drawer-title" style="color:#B06AFF">Wokihub Entreprise</div>
+        <div class="wks-drawer-sub">Accès illimité aux talents pour votre organisation. Forfait mensuel fixe, réponse sous 2h.</div>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Nom de l'organisation <span class="wks-req">*</span></label>
+        <input type="text" class="wks-input" id="entr-nom2" placeholder="Ex: ONG Congo Jeunesse, Hôtel XYZ...">
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Type d'organisation <span class="wks-req">*</span></label>
+        <select class="wks-select" id="entr-type2">
+          <option>PME</option><option>ONG</option><option>Institution publique</option>
+          <option>Hôtel / Restaurant</option><option>Agence événementielle</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Vos besoins principaux <span class="wks-req">*</span></label>
+        <textarea class="wks-textarea" id="entr-besoins2" placeholder="Ex: Photographe mensuel, graphiste à la demande, DJs pour événements trimestriels..."></textarea>
+      </div>
+      <div class="wks-row">
+        <div class="wks-field">
+          <label class="wks-label">Contact WhatsApp <span class="wks-req">*</span></label>
+          <input type="tel" class="wks-input" id="entr-tel2" placeholder="06 XX XX XX XX">
+        </div>
+        <div class="wks-field">
+          <label class="wks-label">Email professionnel</label>
+          <input type="email" class="wks-input" id="entr-email2" placeholder="contact@entreprise.cg">
+        </div>
+      </div>
+      <div class="wks-info-box" style="background:rgba(176,106,255,0.07);border:1px solid rgba(176,106,255,0.2);color:#aaa;">
+        📋 <strong style="color:#B06AFF">Forfait mensuel fixe</strong> — Zéro commission par mission · Facturation mensuelle · Talent dédié disponible
+      </div>
+      <button class="wks-btn-submit" style="background:linear-gradient(135deg,#8B2BE2,#B06AFF);color:#fff;box-shadow:0 6px 24px rgba(138,43,226,0.35);" onclick="wksSubmit('entreprise')">
+        🏢 Demander un devis personnalisé
+      </button>
+    </div>
+    <div class="wks-success" id="wks-success-entreprise">
+      <div class="wks-success-icon">📋</div>
+      <div class="wks-success-title">Demande prête !</div>
+      <div class="wks-success-sub">Envoyez votre demande. Notre équipe vous propose un devis personnalisé sous 24h.</div>
+      <div class="wks-send-btns">
+        <a id="wks-wa-entreprise" href="#" target="_blank" class="wks-btn-wa">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.117 1.516 5.846L.047 23.887l6.198-1.446C7.877 23.437 9.9 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.899 0-3.659-.556-5.14-1.511l-.367-.218-3.807.888.906-3.713-.241-.38C2.556 15.659 2 13.9 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+          WhatsApp
+        </a>
+        <a id="wks-em-entreprise" href="#" target="_blank" class="wks-btn-email">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email
+        </a>
+      </div>
+      <button class="wks-btn-reset" onclick="wksReset('entreprise')">← Modifier</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     DRAWER : PUBLIER UN FLYER
+════════════════════════════════════════════ -->
+<div id="wks-overlay-flyer" class="wks-overlay" onclick="if(event.target===this)wksClose('flyer')">
+  <div class="wks-drawer" style="--active-color:#00C896">
+    <button class="wks-drawer-close" onclick="wksClose('flyer')">✕</button>
+    <div id="wks-form-flyer">
+      <div class="wks-drawer-header">
+        <div class="wks-drawer-emoji">📣</div>
+        <div class="wks-drawer-title" style="color:#00C896">Publier mon flyer</div>
+        <div class="wks-drawer-sub">Touchez toute la communauté Wokihub. Soirée, concert, formation, offre d'emploi — publication gratuite.</div>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Type d'annonce <span class="wks-req">*</span></label>
+        <select class="wks-select" id="fly-type">
+          <option value="">-- Choisir --</option>
+          <option>Soirée / Concert</option><option>Formation / Atelier</option>
+          <option>Offre d'emploi</option><option>Vente / Promo</option>
+          <option>Événement sportif</option><option>Annonce diverse</option>
+        </select>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Titre de l'annonce <span class="wks-req">*</span></label>
+        <input type="text" class="wks-input" id="fly-titre" placeholder="Ex: Soirée AfroBeats au Night Club XYZ">
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Description / Détails <span class="wks-req">*</span></label>
+        <textarea class="wks-textarea" id="fly-desc" placeholder="Date, heure, lieu, prix d'entrée, infos importantes..."></textarea>
+      </div>
+      <div class="wks-row">
+        <div class="wks-field">
+          <label class="wks-label">Ville <span class="wks-req">*</span></label>
+          <select class="wks-select" id="fly-ville">
+            <option value="">Sélectionner...</option>
+            <option>Brazzaville</option><option>Pointe-Noire</option><option>Dolisie</option><option>Nkayi</option><option>Autre</option>
+          </select>
+        </div>
+        <div class="wks-field">
+          <label class="wks-label">Votre WhatsApp <span class="wks-req">*</span></label>
+          <input type="tel" class="wks-input" id="fly-tel" placeholder="06 XX XX XX XX">
+        </div>
+      </div>
+      <div class="wks-field">
+        <label class="wks-label">Lien du flyer (image / Drive)</label>
+        <input type="url" class="wks-input" id="fly-lien" placeholder="https://drive.google.com/...">
+      </div>
+      <div class="wks-info-box" style="background:rgba(0,200,150,0.07);border:1px solid rgba(0,200,150,0.2);color:#aaa;">
+        🎉 <strong style="color:#00C896">Publication gratuite</strong> — Votre flyer sera partagé dans le feed et le groupe WhatsApp Wokihub
+      </div>
+      <button class="wks-btn-submit" style="background:linear-gradient(135deg,#00C896,#00AAFF);color:#000;box-shadow:0 6px 24px rgba(0,200,150,0.3);" onclick="wksSubmit('flyer')">
+        📣 Soumettre mon flyer
+      </button>
+    </div>
+    <div class="wks-success" id="wks-success-flyer">
+      <div class="wks-success-icon">🎉</div>
+      <div class="wks-success-title">Flyer prêt !</div>
+      <div class="wks-success-sub">Envoyez votre annonce directement. N'oubliez pas de joindre l'image du flyer si vous en avez une !</div>
+      <div class="wks-send-btns">
+        <a id="wks-wa-flyer" href="#" target="_blank" class="wks-btn-wa">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.117 1.516 5.846L.047 23.887l6.198-1.446C7.877 23.437 9.9 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.899 0-3.659-.556-5.14-1.511l-.367-.218-3.807.888.906-3.713-.241-.38C2.556 15.659 2 13.9 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+          WhatsApp
+        </a>
+        <a id="wks-em-flyer" href="#" target="_blank" class="wks-btn-email">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email
+        </a>
+      </div>
+      <button class="wks-btn-reset" onclick="wksReset('flyer')">← Modifier</button>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══ SERVICES PAGE — JS ═══ -->
+<script>
+
+// ── Init talents checkbox pour événements ──
+(function() {
+  const TALENTS_EV = ['Photographe','Vidéaste','DJ','Musicien','Coiffeur','Maquilleur','Traiteur','Décorateur','Maître de cérémonie'];
+  const g = document.getElementById('ev-talents-group');
+  if (g) {
+    TALENTS_EV.forEach(t => {
+      const lbl = document.createElement('label');
+      lbl.className = 'wks-check-item';
+      lbl.innerHTML = `<input type="checkbox" value="${t}" class="ev-tal"> ${t}`;
+      g.appendChild(lbl);
+    });
+  }
+})();
+
+// ── Drawer open/close ──
+function wksOpen(id) {
+  const el = document.getElementById('wks-overlay-' + id);
+  if (el) { el.classList.add('open'); document.body.style.overflow = 'hidden'; }
+}
+function wksClose(id) {
+  const el = document.getElementById('wks-overlay-' + id);
+  if (el) { el.classList.remove('open'); document.body.style.overflow = ''; }
+}
+function wksReset(id) {
+  document.getElementById('wks-success-' + id).classList.remove('show');
+  document.getElementById('wks-form-' + id).style.display = '';
+}
+
+// ── ESC key ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.wks-overlay.open').forEach(o => {
+      o.classList.remove('open');
+      document.body.style.overflow = '';
+    });
+  }
+});
+
+// ── Générer message & liens WA/Email ──
+function wksBuildLinks(id, msg) {
+  const waUrl = 'https://wa.me/242069795901?text=' + encodeURIComponent(msg);
+  const emUrl = 'mailto:wokihubca@gmail.com?subject=' + encodeURIComponent(wksSubjects[id]) + '&body=' + encodeURIComponent(msg.replace(/\*/g,'').replace(/_/g,''));
+  document.getElementById('wks-wa-' + id).href = waUrl;
+  document.getElementById('wks-em-' + id).href = emUrl;
+}
+
+const wksSubjects = {
+  talent:     '🎯 Demande Trouver un Talent — Wokihub',
+  events:     '🎪 Demande Organisation Événement — Wokihub',
+  urgence:    '⚡ ALERTE URGENCE Talent — Wokihub',
+  entreprise: '🏢 Demande Devis Entreprise — Wokihub',
+  flyer:      '📣 Soumission Flyer — Wokihub',
+};
+
+// ── Submit handlers ──
+function wksSubmit(id) {
+  let msg = '';
+  let valid = true;
+
+  if (id === 'talent') {
+    const metier = document.getElementById('t-metier').value;
+    const desc   = document.getElementById('t-description').value.trim();
+    const date   = document.getElementById('t-date').value;
+    const ville  = document.getElementById('t-ville').value;
+    const budget = document.getElementById('t-budget').value;
+    const tel    = document.getElementById('t-tel').value.trim();
+    if (!metier || !desc || !date || !ville || !tel) { alert('⚠️ Remplissez tous les champs obligatoires (*)'); return; }
+    msg = `🎯 *TROUVER UN TALENT — WOKIHUB*\n\n🎨 *Talent recherché :* ${metier}\n📝 *Description :* ${desc}\n📅 *Date souhaitée :* ${date}\n📍 *Ville :* ${ville}` +
+          (budget ? `\n💰 *Budget estimé :* ${budget} FCFA` : '') +
+          `\n📱 *WhatsApp client :* ${tel}\n\n_Commission Wokihub : 15% — Sélection de 3 profils sous 24h_\n_Envoyé via wokihub.vercel.app/services_`;
+  }
+
+  else if (id === 'events') {
+    const type    = document.getElementById('ev-type2').value;
+    const date    = document.getElementById('ev-date2').value;
+    const lieu    = document.getElementById('ev-lieu2').value.trim();
+    const tel     = document.getElementById('ev-tel').value.trim();
+    const talents = [...document.querySelectorAll('.ev-tal:checked')].map(c => c.value);
+    const invites = document.getElementById('ev-invites2').value;
+    const budget  = document.getElementById('ev-budget2').value;
+    const notes   = document.getElementById('ev-notes2').value.trim();
+    if (!type || !date || !lieu || !tel || talents.length === 0) { alert('⚠️ Remplissez tous les champs obligatoires (*) et sélectionnez au moins un talent'); return; }
+    msg = `🎪 *ORGANISATION ÉVÉNEMENT — WOKIHUB*\n\n🎭 *Type :* ${type}\n📅 *Date :* ${date}\n📍 *Lieu :* ${lieu}` +
+          (invites ? `\n👥 *Invités :* ${invites}` : '') +
+          `\n🎨 *Talents souhaités :* ${talents.join(', ')}` +
+          (budget ? `\n💰 *Budget total :* ${budget} FCFA` : '') +
+          (notes ? `\n💬 *Notes :* ${notes}` : '') +
+          `\n📱 *WhatsApp client :* ${tel}\n\n_Commission Wokihub : 10% par talent — Coordination complète incluse_\n_Envoyé via wokihub.vercel.app/services_`;
+  }
+
+  else if (id === 'urgence') {
+    const metier = document.getElementById('urg-metier2').value;
+    const desc   = document.getElementById('urg-desc2').value.trim();
+    const lieu   = document.getElementById('urg-lieu2').value.trim();
+    const budget = document.getElementById('urg-budget2').value;
+    const tel    = document.getElementById('urg-tel').value.trim();
+    if (!metier || !desc || !lieu || !budget || !tel) { alert('⚠️ Remplissez tous les champs obligatoires (*)'); return; }
+    msg = `⚡ *URGENCE TALENT — WOKIHUB*\n\n🎨 *Talent recherché :* ${metier}\n📝 *Mission :* ${desc}\n📍 *Localisation :* ${lieu}\n💰 *Budget :* ${budget} FCFA\n📱 *WhatsApp client :* ${tel}\n\n_⚡ ALERTE PRIORITAIRE — Partenaires disponibles à notifier immédiatement_\n_Commission Wokihub Urgence : 12%_\n_Envoyé via wokihub.vercel.app/services_`;
+  }
+
+  else if (id === 'entreprise') {
+    const nom     = document.getElementById('entr-nom2').value.trim();
+    const type    = document.getElementById('entr-type2').value;
+    const besoins = document.getElementById('entr-besoins2').value.trim();
+    const tel     = document.getElementById('entr-tel2').value.trim();
+    const email   = document.getElementById('entr-email2').value.trim();
+    if (!nom || !besoins || !tel) { alert('⚠️ Remplissez tous les champs obligatoires (*)'); return; }
+    msg = `🏢 *DEMANDE ENTREPRISE — WOKIHUB*\n\n🏛️ *Organisation :* ${nom}\n📋 *Type :* ${type}\n📝 *Besoins :* ${besoins}\n📱 *WhatsApp :* ${tel}` +
+          (email ? `\n📧 *Email :* ${email}` : '') +
+          `\n\n_Forfait mensuel fixe — Accès illimité aux talents_\n_Envoyé via wokihub.vercel.app/services_`;
+  }
+
+  else if (id === 'flyer') {
+    const type  = document.getElementById('fly-type').value;
+    const titre = document.getElementById('fly-titre').value.trim();
+    const desc  = document.getElementById('fly-desc').value.trim();
+    const ville = document.getElementById('fly-ville').value;
+    const tel   = document.getElementById('fly-tel').value.trim();
+    const lien  = document.getElementById('fly-lien').value.trim();
+    if (!type || !titre || !desc || !ville || !tel) { alert('⚠️ Remplissez tous les champs obligatoires (*)'); return; }
+    msg = `📣 *PUBLICATION FLYER — WOKIHUB*\n\n📌 *Type :* ${type}\n🏷️ *Titre :* ${titre}\n📝 *Détails :* ${desc}\n📍 *Ville :* ${ville}\n📱 *WhatsApp :* ${tel}` +
+          (lien ? `\n🔗 *Lien flyer :* ${lien}` : '') +
+          `\n\n_📎 Image du flyer à joindre si disponible_\n_Envoyé via wokihub.vercel.app/services_`;
+  }
+
+  if (!msg) return;
+  wksBuildLinks(id, msg);
+  document.getElementById('wks-form-' + id).style.display = 'none';
+  document.getElementById('wks-success-' + id).classList.add('show');
+}
+
+</script>
+</body></html>`;
   const blob = new Blob([recuHTML], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -11704,5 +12701,443 @@ window.ouvrirLandingTalents = function() {
 };
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     MODAL FICHE PARTENARIAT WOKIHUB
+════════════════════════════════════════════════════════════════ -->
+<div id="wk-partenaire-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.97);z-index:10005;overflow-y:auto;padding:20px;">
+  <div style="max-width:800px;margin:0 auto;position:relative;">
+
+    <!-- Bouton fermer -->
+    <button onclick="wkFermerPartenaire()" style="
+      position:sticky;top:12px;float:right;margin-bottom:-44px;
+      width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);
+      background:rgba(255,255,255,0.07);color:#aaa;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;z-index:2;
+      font-size:1.1rem;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,0.07)';this.style.color='#aaa'">✕</button>
+
+    <div style="clear:both;"></div>
+
+    <!-- ── Contenu fiche partenariat ── -->
+    <div class="wk-part-page">
+
+      <!-- Header -->
+      <div class="wk-part-header">
+        <div class="wk-part-logo-badge">✦ Programme Partenaire Wokihub</div>
+        <h1 class="wk-part-h1">Fiche d'Adhésion<br><span class="wk-part-grad">Talent Partenaire</span></h1>
+        <p class="wk-part-subtitle">Rejoignez l'élite des créatifs congolais. Visibilité prioritaire, badge exclusif, commission réduite et accès aux missions premium.</p>
+      </div>
+
+      <!-- Prix -->
+      <div class="wk-part-price-banner">
+        <div class="wk-part-price-info">
+          <div class="wk-part-price-icon">🤝</div>
+          <div>
+            <h3 style="font-size:1.05rem;font-weight:600;color:#F0F4FF;">Offre Lancement — Premiers Inscrits</h3>
+            <p style="font-size:0.82rem;color:#6B7A99;margin-top:2px;">Accès à vie à tous les avantages Partenaire dès activation</p>
+          </div>
+        </div>
+        <div class="wk-part-price-tag">2 000 FCFA</div>
+      </div>
+
+      <!-- Avantages -->
+      <div class="wk-part-benefits-grid">
+        <div class="wk-part-benefit-card"><div class="wk-part-bicon">🏅</div><div><h4 class="wk-part-bh4">Badge Partenaire</h4><p class="wk-part-bp">Distinctif visuel sur votre profil, gage de confiance</p></div></div>
+        <div class="wk-part-benefit-card"><div class="wk-part-bicon">⚡</div><div><h4 class="wk-part-bh4">Priorité d'affichage</h4><p class="wk-part-bp">Votre profil en tête des résultats de recherche</p></div></div>
+        <div class="wk-part-benefit-card"><div class="wk-part-bicon">💸</div><div><h4 class="wk-part-bh4">Commission réduite</h4><p class="wk-part-bp">7% au lieu de 10% sur chaque mission réalisée</p></div></div>
+        <div class="wk-part-benefit-card"><div class="wk-part-bicon">📲</div><div><h4 class="wk-part-bh4">Accès missions exclusives</h4><p class="wk-part-bp">Premières opportunités réservées aux partenaires</p></div></div>
+        <div class="wk-part-benefit-card"><div class="wk-part-bicon">📊</div><div><h4 class="wk-part-bh4">Statistiques avancées</h4><p class="wk-part-bp">Suivi de vos vues, clics et conversions clients</p></div></div>
+        <div class="wk-part-benefit-card"><div class="wk-part-bicon">🎓</div><div><h4 class="wk-part-bh4">Support dédié</h4><p class="wk-part-bp">Accompagnement personnalisé par l'équipe Wokihub</p></div></div>
+      </div>
+
+      <!-- Formulaire -->
+      <form id="wk-partnerForm" onsubmit="wkHandlePartSubmit(event)">
+
+        <!-- Section 1 -->
+        <div class="wk-part-form-card">
+          <div class="wk-part-section-title">01 — Informations Personnelles</div>
+          <div class="wk-part-form-row">
+            <div class="wk-part-form-group"><label class="wk-part-label">Nom complet <span class="wk-part-req">*</span></label><input class="wk-part-input" type="text" id="wk-fullName" placeholder="Ex : Mbemba Jean-Claude" required></div>
+            <div class="wk-part-form-group"><label class="wk-part-label">Pseudonyme Wokihub <span class="wk-part-req">*</span></label><input class="wk-part-input" type="text" id="wk-pseudo" placeholder="Votre pseudo sur la plateforme" required></div>
+          </div>
+          <div class="wk-part-form-row">
+            <div class="wk-part-form-group"><label class="wk-part-label">Téléphone (WhatsApp) <span class="wk-part-req">*</span></label><input class="wk-part-input" type="tel" id="wk-phone" placeholder="06 XX XX XX XX" required></div>
+            <div class="wk-part-form-group"><label class="wk-part-label">Adresse e-mail</label><input class="wk-part-input" type="email" id="wk-email" placeholder="votre@email.com"></div>
+          </div>
+          <div class="wk-part-form-row">
+            <div class="wk-part-form-group"><label class="wk-part-label">Ville <span class="wk-part-req">*</span></label>
+              <select class="wk-part-select" id="wk-city" required>
+                <option value="" disabled selected>Sélectionner...</option>
+                <option>Brazzaville</option><option>Pointe-Noire</option><option>Dolisie</option><option>Nkayi</option><option>Ouesso</option><option>Autre</option>
+              </select>
+            </div>
+            <div class="wk-part-form-group"><label class="wk-part-label">Quartier / Zone</label><input class="wk-part-input" type="text" id="wk-district" placeholder="Ex : Bacongo, Poto-Poto..."></div>
+          </div>
+        </div>
+
+        <!-- Section 2 -->
+        <div class="wk-part-form-card">
+          <div class="wk-part-section-title">02 — Profil Créatif</div>
+          <div class="wk-part-form-row wk-part-full">
+            <div class="wk-part-form-group"><label class="wk-part-label">Catégorie <span class="wk-part-req">*</span></label>
+              <select class="wk-part-select" id="wk-jobCategory" required onchange="wkUpdateJobList()">
+                <option value="" disabled selected>Sélectionner une catégorie...</option>
+                <option value="creatif">🎨 Créatif &amp; Événementiel</option>
+                <option value="artisanal">🔨 Artisanat &amp; Savoir-faire</option>
+                <option value="digital">💻 Digital &amp; Tech</option>
+                <option value="autre">✨ Autre</option>
+              </select>
+            </div>
+          </div>
+          <div class="wk-part-form-row wk-part-full" id="wk-jobRow" style="display:none;">
+            <div class="wk-part-form-group"><label class="wk-part-label">Métier principal <span class="wk-part-req">*</span></label>
+              <select class="wk-part-select" id="wk-mainJob" required onchange="wkUpdateSpecialties()">
+                <option value="" disabled selected>Sélectionner votre métier...</option>
+              </select>
+            </div>
+          </div>
+          <div class="wk-part-form-row wk-part-full" id="wk-specialtiesRow" style="display:none;">
+            <div class="wk-part-form-group"><label class="wk-part-label">Spécialités</label><div class="wk-part-checkbox-group" id="wk-specialtiesGroup"></div></div>
+          </div>
+          <div class="wk-part-form-row wk-part-full" id="wk-autreMetierRow" style="display:none;">
+            <div class="wk-part-form-group"><label class="wk-part-label">Précisez votre métier <span class="wk-part-req">*</span></label><input class="wk-part-input" type="text" id="wk-autreMetier" placeholder="Ex : Luthier, Calligraphe..."></div>
+          </div>
+          <div class="wk-part-form-row">
+            <div class="wk-part-form-group"><label class="wk-part-label">Années d'expérience <span class="wk-part-req">*</span></label>
+              <select class="wk-part-select" id="wk-experience" required>
+                <option value="" disabled selected>Sélectionner...</option>
+                <option>Moins d'1 an</option><option>1 à 2 ans</option><option>3 à 5 ans</option><option>6 à 10 ans</option><option>Plus de 10 ans</option>
+              </select>
+            </div>
+            <div class="wk-part-form-group"><label class="wk-part-label">Budget de prestation moyen</label>
+              <select class="wk-part-select" id="wk-budget">
+                <option value="" disabled selected>Fourchette habituelle...</option>
+                <option>Moins de 25 000 FCFA</option><option>25 000 – 50 000 FCFA</option><option>50 000 – 100 000 FCFA</option><option>100 000 – 300 000 FCFA</option><option>Plus de 300 000 FCFA</option>
+              </select>
+            </div>
+          </div>
+          <div class="wk-part-form-row wk-part-full">
+            <div class="wk-part-form-group"><label class="wk-part-label">Lien portfolio / réseaux sociaux</label><input class="wk-part-input" type="url" id="wk-portfolio" placeholder="https://instagram.com/votre_profil"></div>
+          </div>
+          <div class="wk-part-form-row wk-part-full">
+            <div class="wk-part-form-group"><label class="wk-part-label">Décrivez votre activité <span class="wk-part-req">*</span></label><textarea class="wk-part-textarea" id="wk-description" placeholder="Ex : Photographe de mariage basé à Brazzaville..." rows="3" required></textarea></div>
+          </div>
+        </div>
+
+        <!-- Section 3 : Paiement -->
+        <div class="wk-part-form-card">
+          <div class="wk-part-section-title">03 — Paiement &amp; Activation</div>
+          <div class="wk-part-payment-box">
+            <h4 style="font-size:0.85rem;font-weight:600;color:#00C896;margin-bottom:12px;display:flex;align-items:center;gap:6px;">📱 Instructions de paiement Mobile Money</h4>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:flex-start;gap:10px;font-size:0.83rem;color:#F0F4FF;line-height:1.5;"><div class="wk-part-step-num">1</div><span>Choisissez votre opérateur ci-dessous et effectuez un dépôt de <strong>2 000 FCFA</strong></span></div>
+              <div style="display:flex;align-items:flex-start;gap:10px;font-size:0.83rem;color:#F0F4FF;line-height:1.5;"><div class="wk-part-step-num">2</div><span>Prenez une <strong>capture d'écran</strong> de la confirmation de paiement</span></div>
+              <div style="display:flex;align-items:flex-start;gap:10px;font-size:0.83rem;color:#F0F4FF;line-height:1.5;"><div class="wk-part-step-num">3</div><span>Envoyez la capture + cette fiche remplie via WhatsApp ou Email</span></div>
+            </div>
+          </div>
+          <div class="wk-part-form-row">
+            <div class="wk-part-form-group">
+              <label class="wk-part-label">Opérateur Mobile Money <span class="wk-part-req">*</span></label>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+                <button type="button" class="wk-part-op-btn wk-part-op-mtn" onclick="wkSelectOp('MTN MoMo',this)"><div class="wk-part-op-dot wk-part-dot-mtn"></div>MTN MoMo</button>
+                <button type="button" class="wk-part-op-btn wk-part-op-airtel" onclick="wkSelectOp('Airtel Money',this)"><div class="wk-part-op-dot wk-part-dot-airtel"></div>Airtel Money</button>
+              </div>
+              <input type="hidden" id="wk-operator">
+            </div>
+            <div class="wk-part-form-group"><label class="wk-part-label">Numéro utilisé pour le paiement <span class="wk-part-req">*</span></label><input class="wk-part-input" type="tel" id="wk-payPhone" placeholder="06 XX XX XX XX" required></div>
+          </div>
+          <div class="wk-part-form-row wk-part-full">
+            <div class="wk-part-form-group"><label class="wk-part-label">Compte destinataire</label>
+              <div style="background:rgba(0,200,150,0.06);border:1px solid rgba(0,200,150,0.2);border-radius:10px;padding:12px 14px;font-size:0.9rem;color:#00C896;font-weight:600;">📲 Wokihub — Compte dédié partenariat (numéro communiqué sur WhatsApp)</div>
+            </div>
+          </div>
+          <div class="wk-part-form-row wk-part-full">
+            <div class="wk-part-form-group"><label class="wk-part-label">Informations complémentaires</label><textarea class="wk-part-textarea" id="wk-notes" placeholder="Une question, une précision... Notre équipe vous répondra sous 24h." rows="2"></textarea></div>
+          </div>
+          <div style="margin-top:20px;display:flex;align-items:flex-start;gap:10px;">
+            <input type="checkbox" id="wk-agree" required style="width:18px;height:18px;accent-color:#00C896;margin-top:3px;flex-shrink:0;cursor:pointer;">
+            <label for="wk-agree" style="font-size:0.82rem;color:#6B7A99;cursor:pointer;line-height:1.5;">Je certifie que les informations fournies sont exactes et j'accepte les <strong style="color:#F0F4FF;">Conditions Générales de Wokihub</strong> (commission 7% sur missions, badge révocable en cas de violation des CGU).</label>
+          </div>
+        </div>
+
+        <!-- Section 4 : Envoi -->
+        <div class="wk-part-submit-section">
+          <div class="wk-part-section-title" style="margin-bottom:16px;">04 — Envoi de la Fiche</div>
+          <p style="font-size:0.82rem;color:#6B7A99;margin-bottom:16px;line-height:1.6;">Une fois le formulaire complété et le paiement effectué, envoyez-nous votre fiche accompagnée de la capture de dépôt :</p>
+          <div class="wk-part-contact-methods">
+            <div class="wk-part-contact-card"><div style="font-size:1.6rem;margin-bottom:8px;">💬</div><div style="font-size:0.7rem;color:#6B7A99;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WhatsApp</div><div style="font-size:0.9rem;font-weight:600;color:#F0F4FF;">06 979 59 01</div><div style="font-size:0.75rem;color:#6B7A99;margin-top:2px;">Envoi rapide conseillé</div></div>
+            <div class="wk-part-contact-card"><div style="font-size:1.6rem;margin-bottom:8px;">📧</div><div style="font-size:0.7rem;color:#6B7A99;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Email</div><div style="font-size:0.9rem;font-weight:600;color:#F0F4FF;">wokihubca@gmail.com</div><div style="font-size:0.75rem;color:#6B7A99;margin-top:2px;">Réponse sous 24h</div></div>
+          </div>
+          <div class="wk-part-send-info">⚠️ <strong>À joindre obligatoirement :</strong> la capture d'écran de votre dépôt Mobile Money + le nom de votre compte Wokihub. Votre badge Partenaire sera activé sous <strong>24h</strong> après vérification.</div>
+          <button type="submit" class="wk-part-btn-submit"><span>✅ Valider et Préparer l'Envoi</span></button>
+        </div>
+
+      </form>
+
+      <!-- Footer -->
+      <div style="text-align:center;margin-top:32px;color:#6B7A99;font-size:0.78rem;line-height:1.8;padding-bottom:20px;">
+        <p><strong style="color:#00C896;">Wokihub</strong> — Plateforme N°1 des Talents au Congo 🇨🇬</p>
+        <p>📲 06 979 59 01 &nbsp;·&nbsp; ✉️ wokihubca@gmail.com</p>
+      </div>
+
+    </div><!-- fin .wk-part-page -->
+  </div>
+</div>
+
+<!-- Overlay succès partenariat -->
+<div id="wk-part-successOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,15,30,0.96);z-index:10010;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:16px;padding:24px;">
+  <div style="font-size:3.5rem;animation:wkBounceIn 0.5s ease-out;">🏅</div>
+  <h2 style="font-family:var(--font-display);font-size:1.8rem;color:#F0F4FF;">Fiche prête à envoyer !</h2>
+  <p style="color:#6B7A99;font-size:0.9rem;max-width:400px;line-height:1.6;">Votre fiche de partenariat est complète. Envoyez-la avec votre capture de dépôt via WhatsApp ou Email pour activer votre badge Partenaire sous 24h.</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+    <a id="wk-part-waLink" href="#" target="_blank" style="background:#25D366;color:#fff;border:none;border-radius:10px;padding:12px 22px;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:8px;text-decoration:none;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.553 4.117 1.516 5.846L.047 23.887l6.198-1.446C7.877 23.437 9.9 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.899 0-3.659-.556-5.14-1.511l-.367-.218-3.807.888.906-3.713-.241-.38C2.556 15.659 2 13.9 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      Envoyer sur WhatsApp
+    </a>
+    <a id="wk-part-emailLink" href="#" target="_blank" style="background:rgba(255,255,255,0.08);color:#F0F4FF;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 22px;font-weight:600;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:8px;text-decoration:none;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      Envoyer par Email
+    </a>
+  </div>
+  <button onclick="document.getElementById('wk-part-successOverlay').style.display='none';" style="background:none;border:none;color:#6B7A99;font-size:0.85rem;cursor:pointer;text-decoration:underline;font-family:var(--font-body);margin-top:8px;">Revenir à la fiche</button>
+</div>
+
+<style>
+@keyframes wkBounceIn { 0%{transform:scale(0);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+/* ── Partenariat modal styles ── */
+.wk-part-page { padding: 32px 0 20px; font-family: var(--font-body); }
+.wk-part-header { text-align:center; margin-bottom:36px; }
+.wk-part-logo-badge { display:inline-flex;align-items:center;gap:10px;background:rgba(0,200,150,0.1);border:1px solid rgba(0,200,150,0.3);border-radius:40px;padding:8px 20px;font-size:0.78rem;font-weight:600;color:#00C896;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px; }
+.wk-part-h1 { font-family:var(--font-display);font-size:clamp(1.8rem,5vw,2.8rem);font-weight:700;line-height:1.1;color:#F0F4FF;margin-bottom:12px; }
+.wk-part-grad { background:linear-gradient(135deg,#00C896,#00AAFF,#B06AFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+.wk-part-subtitle { color:#6B7A99;font-size:0.95rem;line-height:1.6;max-width:520px;margin:0 auto; }
+.wk-part-price-banner { background:linear-gradient(135deg,rgba(0,200,150,0.12),rgba(0,170,255,0.08));border:1px solid rgba(0,200,150,0.25);border-radius:16px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:32px; }
+.wk-part-price-info { display:flex;align-items:center;gap:14px; }
+.wk-part-price-icon { width:48px;height:48px;background:linear-gradient(135deg,#00C896,#00AAFF);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0; }
+.wk-part-price-tag { background:linear-gradient(135deg,#00C896,#00AAFF);color:#000;font-size:1.3rem;font-weight:800;padding:10px 20px;border-radius:12px;white-space:nowrap; }
+.wk-part-benefits-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:32px; }
+.wk-part-benefit-card { background:#141C2E;border:1px solid rgba(0,200,150,0.15);border-radius:12px;padding:16px;display:flex;align-items:flex-start;gap:12px; }
+.wk-part-bicon { font-size:1.4rem;flex-shrink:0; }
+.wk-part-bh4 { font-size:0.85rem;font-weight:600;color:#F0F4FF;margin-bottom:3px; }
+.wk-part-bp { font-size:0.75rem;color:#6B7A99;line-height:1.4; }
+.wk-part-form-card, .wk-part-submit-section { background:#141C2E;border:1px solid rgba(0,200,150,0.15);border-radius:16px;padding:28px;margin-bottom:20px; }
+.wk-part-section-title { font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#00C896;margin-bottom:18px;display:flex;align-items:center;gap:8px; }
+.wk-part-section-title::after { content:'';flex:1;height:1px;background:rgba(0,200,150,0.15); }
+.wk-part-form-row { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px; }
+.wk-part-full { grid-template-columns:1fr !important; }
+@media(max-width:520px){.wk-part-form-row{grid-template-columns:1fr;}}
+.wk-part-form-group { display:flex;flex-direction:column;gap:6px; }
+.wk-part-label { font-size:0.78rem;font-weight:500;color:#6B7A99;text-transform:uppercase;letter-spacing:0.5px; }
+.wk-part-req { color:#00C896;margin-left:2px; }
+.wk-part-input, .wk-part-select, .wk-part-textarea { background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#F0F4FF;font-family:var(--font-body);font-size:0.9rem;padding:11px 14px;outline:none;transition:border-color 0.2s,background 0.2s;width:100%; }
+.wk-part-input::placeholder,.wk-part-textarea::placeholder{color:rgba(107,122,153,0.5);}
+.wk-part-input:focus,.wk-part-select:focus,.wk-part-textarea:focus{border-color:#00C896;background:rgba(0,200,150,0.04);}
+.wk-part-select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7A99' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+.wk-part-select option{background:#111827;}
+.wk-part-textarea{resize:vertical;min-height:80px;}
+.wk-part-checkbox-group{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:4px;}
+.wk-part-checkbox-item{display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.02);transition:all 0.15s;font-size:0.82rem;user-select:none;color:#F0F4FF;}
+.wk-part-checkbox-item:hover{border-color:rgba(0,200,150,0.3);background:rgba(0,200,150,0.05);}
+.wk-part-checkbox-item input{width:16px;height:16px;accent-color:#00C896;cursor:pointer;flex-shrink:0;}
+.wk-part-payment-box{background:linear-gradient(135deg,rgba(0,200,150,0.08),rgba(0,170,255,0.05));border:1px solid rgba(0,200,150,0.2);border-radius:14px;padding:18px;margin-bottom:18px;}
+.wk-part-step-num{width:22px;height:22px;background:#00C896;color:#000;border-radius:50%;font-size:0.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.wk-part-op-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;border:2px solid transparent;background:rgba(255,255,255,0.05);color:#F0F4FF;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.wk-part-op-mtn{border-color:rgba(255,215,0,0.3);}
+.wk-part-op-airtel{border-color:rgba(255,68,68,0.3);}
+.wk-part-op-mtn:hover,.wk-part-op-mtn.active{background:rgba(255,215,0,0.12);border-color:#FFD700;}
+.wk-part-op-airtel:hover,.wk-part-op-airtel.active{background:rgba(255,68,68,0.12);border-color:#FF4444;}
+.wk-part-op-dot{width:10px;height:10px;border-radius:50%;}
+.wk-part-dot-mtn{background:#FFD700;}
+.wk-part-dot-airtel{background:#FF4444;}
+.wk-part-contact-methods{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+@media(max-width:480px){.wk-part-contact-methods{grid-template-columns:1fr;}}
+.wk-part-contact-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;}
+.wk-part-send-info{background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:14px 16px;font-size:0.82rem;color:#FFD700;line-height:1.5;margin-bottom:22px;}
+.wk-part-send-info strong{color:#FFD700;}
+.wk-part-btn-submit{width:100%;padding:15px;background:linear-gradient(135deg,#00C896,#00AAFF);border:none;border-radius:14px;color:#000;font-family:var(--font-body);font-size:1rem;font-weight:800;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 24px rgba(0,200,150,0.3);}
+.wk-part-btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(0,200,150,0.45);}
+</style>
+
+<script>
+// ── Données métiers partenariat ──
+const WK_PART_METIERS = {
+  creatif: { label:'🎨 Créatif & Événementiel', jobs: {
+    'Photographe':['Portrait','Mariage','Mode','Corporate','Événementiel','Reportage','Art & Culture','Nouveau-né'],
+    'Vidéaste / Cameraman':['Mariage','Corporate','Clip musical','Reportage','Événementiel','Court-métrage','Drone'],
+    'Graphiste / Illustrateur':['Logo & Identité','Affiche','Réseaux sociaux','Packaging','Illustration','Web design','Motion design'],
+    'DJ / Animateur':['Mariage','Club','Corporate','Festival','Anniversaire','Soirée privée','Kids'],
+    'Musicien / Artiste':['Concert','Mariage','Studio','Chorale','Événementiel','Cours de musique','Composition'],
+    'Maquilleur(se)':['Mariage','Scène & Spectacle','Mode','Cinéma','Quotidien','Soirée','Effets spéciaux'],
+    'Coiffeur(se)':['Mariage','Tresses & Nattes','Défrisage','Coloration','Coupe homme','Soins capillaires','Perruques'],
+    'Décorateur(rice)':['Mariage','Événementiel','Intérieur','Vitrine','Scénographie','Floral','Thématique'],
+    'Traiteur':['Mariage','Buffet froid','Cocktail','Repas assis','Événementiel','Cuisine africaine','Street food'],
+    'Maître de cérémonie':['Mariage','Gala','Corporate','Anniversaire','Funérailles','Conférence','Show'],
+    'Danseur(se) / Chorégraphe':['Mariage','Spectacle','Cours de danse','Clip musical','Compétition','Danse africaine','Modern jazz'],
+  }},
+  artisanal: { label:'🔨 Artisanat & Savoir-faire', jobs: {
+    'Couturier(ère)':['Tenue de mariage','Prêt-à-porter','Sur mesure','Tenue traditionnelle','Retouche','Uniforme','Lingerie'],
+    'Tisserand / Wax & Pagne':['Wax imprimé','Pagne tissé','Broderie','Création textile','Teinture traditionnelle'],
+    'Bijoutier(ère) / Accessoiriste':['Bijoux fantaisie','Bijoux traditionnels','Colliers & Bracelets','Accessoires de fête','Piercing','Or & Argent'],
+    'Menuisier / Ébéniste':['Mobilier sur mesure','Décoration bois','Aménagement intérieur','Sculpture bois','Rénovation'],
+    'Sculpteur(rice)':['Sculpture bois','Sculpture pierre','Art contemporain','Déco intérieure','Masques & Totems'],
+    'Peintre artisan':['Peinture murale','Décoration intérieure','Art contemporain','Fresque','Tableau sur toile'],
+    'Cordonnier(ère)':['Chaussures sur mesure','Chaussures de mariage','Sandales','Réparation','Semelle orthopédique'],
+  }},
+  digital: { label:'💻 Digital & Tech', jobs: {
+    'Développeur(se) Web':['Site vitrine','E-commerce','Application web','WordPress','React / Vue','API & Backend','Refonte site'],
+    'Développeur(se) Mobile':['Application Android','Application iOS','React Native','Flutter','Maintenance app'],
+    'Designer UI/UX':['Maquette & Prototype','Application mobile','Site web','Design system','Audit UX','Figma'],
+    'Community Manager':['Facebook & Instagram','TikTok','LinkedIn','Stratégie de contenu','Publicité Meta','Reporting'],
+    'Monteur(se) vidéo':['Court-métrage','Clip musical','Pub & Corporate','Reels & TikTok','Motion graphics','Color grading'],
+    'Rédacteur(rice) / Copywriter':['Article de blog','Réseaux sociaux','Email marketing','Script vidéo','SEO','Traduction'],
+    'Expert(e) SEO / Publicité':['Référencement naturel','Google Ads','Meta Ads','Audit SEO','Stratégie digitale'],
+    'Formateur(rice) digital':['Bureautique','Réseaux sociaux','Création de contenu','Outils IA','E-learning'],
+  }},
+  autre: { label:'✨ Autre', jobs: {} }
+};
+
+let wkPartSelectedOp = '';
+
+window.wkOuvrirPartenaire = function() {
+  const overlay = document.getElementById('wk-partenaire-overlay');
+  if (overlay) {
+    overlay.style.display = 'block';
+    overlay.scrollTop = 0;
+    document.body.style.overflow = 'hidden';
+  }
+};
+
+window.wkFermerPartenaire = function() {
+  const overlay = document.getElementById('wk-partenaire-overlay');
+  if (overlay) { overlay.style.display = 'none'; document.body.style.overflow = ''; }
+};
+
+// Fermer en cliquant sur le fond
+document.getElementById('wk-partenaire-overlay').addEventListener('click', function(e) {
+  if (e.target === this) wkFermerPartenaire();
+});
+
+window.wkUpdateJobList = function() {
+  const cat = document.getElementById('wk-jobCategory').value;
+  const jobRow = document.getElementById('wk-jobRow');
+  const jobSelect = document.getElementById('wk-mainJob');
+  const autreRow = document.getElementById('wk-autreMetierRow');
+  const specRow = document.getElementById('wk-specialtiesRow');
+  jobSelect.innerHTML = '<option value="" disabled selected>Sélectionner votre métier...</option>';
+  document.getElementById('wk-specialtiesGroup').innerHTML = '';
+  specRow.style.display = 'none';
+  if (cat === 'autre') {
+    jobRow.style.display = 'none'; autreRow.style.display = 'block';
+    document.getElementById('wk-autreMetier').required = true; jobSelect.required = false;
+  } else {
+    jobRow.style.display = 'block'; autreRow.style.display = 'none';
+    document.getElementById('wk-autreMetier').required = false; jobSelect.required = true;
+    const jobs = WK_PART_METIERS[cat].jobs;
+    Object.keys(jobs).forEach(j => { const opt = document.createElement('option'); opt.value = j; opt.textContent = j; jobSelect.appendChild(opt); });
+  }
+};
+
+window.wkUpdateSpecialties = function() {
+  const cat = document.getElementById('wk-jobCategory').value;
+  const job = document.getElementById('wk-mainJob').value;
+  const group = document.getElementById('wk-specialtiesGroup');
+  const row = document.getElementById('wk-specialtiesRow');
+  group.innerHTML = '';
+  if (!job || !WK_PART_METIERS[cat] || !WK_PART_METIERS[cat].jobs[job]) { row.style.display = 'none'; return; }
+  WK_PART_METIERS[cat].jobs[job].forEach(s => {
+    const lbl = document.createElement('label');
+    lbl.className = 'wk-part-checkbox-item';
+    lbl.innerHTML = `<input type="checkbox" name="wk-extras" value="${s}"> ${s}`;
+    group.appendChild(lbl);
+  });
+  row.style.display = 'block';
+};
+
+window.wkSelectOp = function(name, btn) {
+  document.querySelectorAll('.wk-part-op-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  wkPartSelectedOp = name;
+  document.getElementById('wk-operator').value = name;
+};
+
+window.wkHandlePartSubmit = function(e) {
+  e.preventDefault();
+  if (!wkPartSelectedOp) { alert('Veuillez sélectionner un opérateur Mobile Money.'); return; }
+  const name     = document.getElementById('wk-fullName').value;
+  const pseudo   = document.getElementById('wk-pseudo').value;
+  const phone    = document.getElementById('wk-phone').value;
+  const email    = document.getElementById('wk-email').value;
+  const city     = document.getElementById('wk-city').value;
+  const cat      = document.getElementById('wk-jobCategory').value;
+  const catLabel = cat ? WK_PART_METIERS[cat].label : '';
+  const job      = cat === 'autre'
+    ? (document.getElementById('wk-autreMetier').value || 'Autre')
+    : document.getElementById('wk-mainJob').value;
+  const exp      = document.getElementById('wk-experience').value;
+  const desc     = document.getElementById('wk-description').value;
+  const payPhone = document.getElementById('wk-payPhone').value;
+  const notes    = document.getElementById('wk-notes').value;
+  const extras   = [...document.querySelectorAll('input[name="wk-extras"]:checked')].map(c => c.value);
+
+  const msgText =
+    `🤝 *FICHE PARTENARIAT WOKIHUB*\n\n` +
+    `👤 *Nom :* ${name}\n🎭 *Pseudo Wokihub :* ${pseudo}\n📱 *Téléphone :* ${phone}\n` +
+    (email ? `📧 *Email :* ${email}\n` : '') +
+    `📍 *Ville :* ${city}\n\n🗂 *Catégorie :* ${catLabel}\n🎨 *Métier principal :* ${job}\n` +
+    (extras.length ? `✨ *Spécialités :* ${extras.join(', ')}\n` : '') +
+    `⏱ *Expérience :* ${exp}\n📝 *Description :* ${desc}\n\n` +
+    `💳 *Opérateur de paiement :* ${wkPartSelectedOp}\n📲 *Numéro de paiement :* ${payPhone}\n💰 *Montant réglé :* 2 000 FCFA\n` +
+    (notes ? `\n💬 *Notes :* ${notes}\n` : '') +
+    `\n_📎 J'ai joint la capture de mon dépôt Mobile Money._\n\n_Document généré sur wokihub.vercel.app_`;
+
+  document.getElementById('wk-part-waLink').href = `https://wa.me/242069795901?text=${encodeURIComponent(msgText)}`;
+  const emailSubject = `Fiche Partenariat Talent — ${name} (${pseudo})`;
+  const emailBody = msgText.replace(/\*/g,'').replace(/_/g,'');
+  document.getElementById('wk-part-emailLink').href = `mailto:wokihubca@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+  const successEl = document.getElementById('wk-part-successOverlay');
+  successEl.style.display = 'flex';
+};
+</script>
+
+
+<!-- ═══ NAVIGATION SERVICES PAGE ═══ -->
+<script>
+// ── Afficher / masquer la page Services intégrée ──
+function wkShowServicesPage(e) {
+  if (e) e.preventDefault();
+  const page = document.getElementById('wk-services-page');
+  const mainContent = document.getElementById('wk-main-content');
+  if (!page) return;
+
+  page.classList.add('active');
+  page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Masquer le contenu principal si wrapper présent
+  if (mainContent) mainContent.style.display = 'none';
+
+  // Mettre à jour le lien actif dans la nav
+  document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+  const navLink = document.getElementById('nav-services-link');
+  if (navLink) navLink.classList.add('active');
+
+  // Scroll vers la section
+  window.scrollTo({ top: page.offsetTop - 64, behavior: 'smooth' });
+}
+
+function wkHideServicesPage() {
+  const page = document.getElementById('wk-services-page');
+  const mainContent = document.getElementById('wk-main-content');
+  if (page) page.classList.remove('active');
+  if (mainContent) mainContent.style.display = '';
+}
+
+// Fermer la page services si on clique sur un autre lien de nav
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.nav-links a:not(#nav-services-link)').forEach(function(link) {
+    link.addEventListener('click', function() {
+      wkHideServicesPage();
+    });
+  });
+});
+</script>
 </body>
 </html>
